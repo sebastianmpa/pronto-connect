@@ -3,7 +3,6 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 import AtcSignIn from "./pages/AuthPages/AtcSignIn";
 import OrdersList from "./pages/Orders/OrdersList";
 import SmsLogsList from "./pages/SmsLogs/SmsLogsList";
-import Ecommerce from "./pages/Dashboard/Ecommerce";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
