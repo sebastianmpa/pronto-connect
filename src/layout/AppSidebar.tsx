@@ -22,11 +22,13 @@ import {
   // PieChartIcon,
   // PlugInIcon,
   TableIcon,
+  GroupIcon,
   // TaskIcon,
   // UserCircleIcon,
 } from "../icons";
 import { cn } from "../utils";
 import SidebarWidget from "./SidebarWidget";
+import GlobalSearch from "../components/search/GlobalSearch";
 
 type NavItem = {
   name: string;
@@ -53,6 +55,11 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "SMS Logs",
     path: "/sms-logs",
+  },
+  {
+    icon: <GroupIcon />,
+    name: "Customers",
+    path: "/customers",
   },
 ];
 
@@ -535,6 +542,8 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
+
+      <GlobalSearch />
 
       <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
         <nav className="mb-6">

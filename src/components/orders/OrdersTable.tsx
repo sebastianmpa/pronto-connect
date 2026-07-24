@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
   Table,
   TableBody,
@@ -8,8 +9,7 @@ import {
 } from "../ui/table";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
 import ordersService from "../../lib/orders/ordersService";
-import type { OrderItem, OrdersSearchParams, OrderDetail } from "../../lib/orders/types";
-import OrderDetailModal from "./OrderDetailModal";
+import type { OrderItem, OrdersSearchParams } from "../../lib/orders/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +31,8 @@ function formatDate(raw: string): string {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OrdersTable() {
+  const navigate = useNavigate();
+
   const [startDate, setStartDate] = useState(daysAgo(14));
   const [endDate, setEndDate] = useState(today());
   const [name, setName] = useState("");
@@ -46,29 +48,11 @@ export default function OrdersTable() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Detail modal state ───────────────────────────────────────────────────
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailOrder, setDetailOrder] = useState<OrderDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
-
-  const openDetail = useCallback(async (reference: string | undefined) => {
-    // Strip leading "E-" from reference (e.g. "E-450218184" → "450218184")
+  const openDetail = (reference: string | undefined) => {
     const rawNum = (reference ?? "").replace(/^E-/i, "").trim();
     if (!rawNum) return;
-    setDetailOpen(true);
-    setDetailOrder(null);
-    setDetailError(null);
-    setDetailLoading(true);
-    try {
-      const data = await ordersService.getOrderDetail(rawNum);
-      setDetailOrder(data);
-    } catch {
-      setDetailError("Could not load order details. Please try again.");
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
+    navigate(`/orders/${rawNum}`);
+  };
 
   const fetchOrders = useCallback(
     async (page: number) => {
@@ -311,15 +295,6 @@ export default function OrdersTable() {
           </div>
         </div>
       )}
-
-      {/* ── Order detail modal ── */}
-      <OrderDetailModal
-        isOpen={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        order={detailOrder}
-        loading={detailLoading}
-        error={detailError}
-      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
   Table,
   TableBody,
@@ -9,7 +10,6 @@ import {
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
 import smsLogsService from "../../lib/sms-logs/smsLogsService";
 import type { SmsLogItem, SmsLogsParams } from "../../lib/sms-logs/types";
-import SmsLogDetailModal from "./SmsLogDetailModal";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,8 @@ function fmtDate(raw: string): string {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SmsLogsTable() {
+  const navigate = useNavigate();
+
   // Filters
   const [orderNumber, setOrderNumber] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -37,11 +39,7 @@ export default function SmsLogsTable() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Detail modal
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLog, setDetailLog] = useState<SmsLogItem | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const openDetail = (id: number) => navigate(`/sms-logs/${id}`);
 
   const fetchLogs = useCallback(
     async (page: number) => {
@@ -79,21 +77,6 @@ export default function SmsLogsTable() {
     e.preventDefault();
     fetchLogs(1);
   };
-
-  const openDetail = useCallback(async (id: number) => {
-    setDetailOpen(true);
-    setDetailLog(null);
-    setDetailError(null);
-    setDetailLoading(true);
-    try {
-      const data = await smsLogsService.getById(id);
-      setDetailLog(data);
-    } catch {
-      setDetailError("Could not load log details. Please try again.");
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
 
   const startIndex = (currentPage - 1) * limit + 1;
   const endIndex = Math.min(startIndex + items.length - 1, totalItems);
@@ -288,15 +271,6 @@ export default function SmsLogsTable() {
           </div>
         </div>
       )}
-
-      {/* ── Detail modal ── */}
-      <SmsLogDetailModal
-        isOpen={detailOpen}
-        onClose={() => setDetailOpen(false)}
-        log={detailLog}
-        loading={detailLoading}
-        error={detailError}
-      />
     </div>
   );
 }

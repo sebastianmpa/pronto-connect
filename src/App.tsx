@@ -2,7 +2,11 @@ import { BrowserRouter as Router, Routes, Route } from "react-router";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import AtcSignIn from "./pages/AuthPages/AtcSignIn";
 import OrdersList from "./pages/Orders/OrdersList";
+import OrderDetail from "./pages/Orders/OrderDetail";
 import SmsLogsList from "./pages/SmsLogs/SmsLogsList";
+import SmsLogDetail from "./pages/SmsLogs/SmsLogDetail";
+import CustomersList from "./pages/Customers/CustomersList";
+import CustomerDetail from "./pages/Customers/CustomerDetail";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -104,7 +108,11 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index path="/" element={<OrdersList />} />
             <Route path="/orders" element={<OrdersList />} />
+            <Route path="/orders/:orderNumber" element={<OrderDetail />} />
             <Route path="/sms-logs" element={<SmsLogsList />} />
+            <Route path="/sms-logs/:id" element={<SmsLogDetail />} />
+            <Route path="/customers" element={<CustomersList />} />
+            <Route path="/customers/detail" element={<CustomerDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />
