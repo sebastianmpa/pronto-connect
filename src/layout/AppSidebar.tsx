@@ -7,7 +7,7 @@ import {
   // AiIcon,
   // BoxCubeIcon,
   // CalenderIcon,
-  // CallIcon,
+  CallIcon,
   // CartIcon,
   // ChatIcon,
   ChevronDownIcon,
@@ -47,6 +47,11 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
+    icon: <GroupIcon />,
+    name: "Customers",
+    path: "/customers",
+  },
+  {
     icon: <TableIcon />,
     name: "Orders",
     path: "/orders",
@@ -57,9 +62,9 @@ const navItems: NavItem[] = [
     path: "/sms-logs",
   },
   {
-    icon: <GroupIcon />,
-    name: "Customers",
-    path: "/customers",
+    icon: <CallIcon />,
+    name: "Tickets",
+    path: "/tickets",
   },
 ];
 

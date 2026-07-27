@@ -11,6 +11,12 @@ function fmtDate(raw: string): string {
   return isNaN(d.getTime()) ? raw : d.toLocaleString();
 }
 
+function fmtStatusDate(raw?: string): string | null {
+  if (!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
+}
+
 const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
 
 export default function OrderDetailView({ order }: { order: OrderDetailType }) {
@@ -35,35 +41,70 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
       {/* Progress stepper */}
       {order.customer_service_status && (
         <div>
-          <div className="flex items-start gap-0">
+          <div className="flex items-start">
             {STEPS.map((label, i) => {
-              const active = i < (order.customer_service_status?.step ?? 0);
-              const current = i === (order.customer_service_status?.step ?? 0) - 1;
+              const currentIndex = (order.customer_service_status?.step ?? 0) - 1;
+              const completed = i < currentIndex;
+              const current = i === currentIndex;
+              // The segment right before this circle is "done" once the previous circle is completed.
+              const segmentBeforeDone = i > 0 && i - 1 < currentIndex;
+              // The segment right after this circle is "done" once this circle itself is completed.
+              const segmentAfterDone = completed;
               return (
-                <div key={label} className="flex flex-1 flex-col items-center">
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                      active
-                        ? "bg-brand-500 text-gray-900"
-                        : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
-                    } ${current ? "ring-2 ring-brand-300" : ""}`}
-                  >
-                    {i + 1}
+                <div key={label} className="flex flex-1 flex-col items-center last:flex-none">
+                  <div className="relative flex h-9 w-full items-center justify-center">
+                    {i > 0 && (
+                      <div
+                        className={`absolute top-1/2 left-0 h-1 w-1/2 -translate-y-1/2 rounded-full ${
+                          segmentBeforeDone ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
+                        }`}
+                      />
+                    )}
+                    {i < STEPS.length - 1 && (
+                      <div
+                        className={`absolute top-1/2 right-0 h-1 w-1/2 -translate-y-1/2 rounded-full ${
+                          segmentAfterDone ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
+                        }`}
+                      />
+                    )}
+                    <div
+                      className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                        completed
+                          ? "bg-green-500 text-white"
+                          : current
+                            ? "bg-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-500/30"
+                            : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                      }`}
+                    >
+                      {i + 1}
+                    </div>
                   </div>
-                  <span className={`mt-1.5 text-xs text-center ${active ? "text-brand-600 dark:text-brand-400 font-medium" : "text-gray-400"}`}>
+                  <span
+                    className={`mt-1.5 text-xs text-center ${
+                      completed
+                        ? "text-green-600 dark:text-green-400 font-medium"
+                        : current
+                          ? "text-blue-600 dark:text-blue-400 font-medium"
+                          : "text-gray-400"
+                    }`}
+                  >
                     {label}
                   </span>
-                  {i < STEPS.length - 1 && (
-                    <div className={`h-px w-full ${active ? "bg-brand-400" : "bg-gray-200 dark:bg-gray-700"}`} />
-                  )}
                 </div>
               );
             })}
           </div>
-          {order.customer_service_status.customer_message && (
-            <p className="mt-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-              {order.customer_service_status.customer_message}
-            </p>
+          {(order.customer_service_status.customer_message || fmtStatusDate(order.customer_service_status.date)) && (
+            <div className="mt-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+              {order.customer_service_status.customer_message && (
+                <p>{order.customer_service_status.customer_message}</p>
+              )}
+              {fmtStatusDate(order.customer_service_status.date) && (
+                <p className={order.customer_service_status.customer_message ? "mt-1 text-xs opacity-80" : "text-xs opacity-80"}>
+                  Status date: {fmtStatusDate(order.customer_service_status.date)}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

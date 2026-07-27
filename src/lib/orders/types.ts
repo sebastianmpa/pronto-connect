@@ -103,6 +103,7 @@ export interface CustomerServiceStatus {
   customer_message: string;
   step: number;
   eta: string;
+  date?: string;
 }
 
 export interface OrderDetail {

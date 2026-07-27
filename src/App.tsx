@@ -7,6 +7,8 @@ import SmsLogsList from "./pages/SmsLogs/SmsLogsList";
 import SmsLogDetail from "./pages/SmsLogs/SmsLogDetail";
 import CustomersList from "./pages/Customers/CustomersList";
 import CustomerDetail from "./pages/Customers/CustomerDetail";
+import TicketsList from "./pages/Tickets/TicketsList";
+import TicketDetail from "./pages/Tickets/TicketDetail";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -106,13 +108,15 @@ export default function App() {
           {/* Protected: Dashboard Layout */}
           <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route index path="/" element={<OrdersList />} />
+            <Route index path="/" element={<CustomersList />} />
             <Route path="/orders" element={<OrdersList />} />
             <Route path="/orders/:orderNumber" element={<OrderDetail />} />
             <Route path="/sms-logs" element={<SmsLogsList />} />
             <Route path="/sms-logs/:id" element={<SmsLogDetail />} />
             <Route path="/customers" element={<CustomersList />} />
             <Route path="/customers/detail" element={<CustomerDetail />} />
+            <Route path="/tickets" element={<TicketsList />} />
+            <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />

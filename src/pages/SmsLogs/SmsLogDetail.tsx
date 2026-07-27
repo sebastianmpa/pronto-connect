@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import smsLogsService from "../../lib/sms-logs/smsLogsService";
@@ -14,6 +14,8 @@ function fmtDate(raw: string): string {
 export default function SmsLogDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = (location.state as { from?: string } | null)?.from ?? "/sms-logs";
 
   const [log, setLog] = useState<SmsLogItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,13 +43,13 @@ export default function SmsLogDetail() {
       <div className="rounded-2xl bg-white p-6 dark:bg-gray-900 shadow-sm">
         {/* Back button */}
         <button
-          onClick={() => navigate("/sms-logs")}
+          onClick={() => navigate(backTo)}
           className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white/90 transition-colors"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          Back to SMS Logs
+          Back
         </button>
 
         {loading && (

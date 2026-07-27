@@ -1,3 +1,6 @@
+import type { SmsLogItem } from "../sms-logs/types";
+import type { TicketItem } from "../tickets/types";
+
 export interface CustomersSearchParams {
   store_url: string;
   page?: number;
@@ -39,8 +42,8 @@ export interface CustomerHistoryBreakdown {
 export interface CustomerHistory {
   totalOrders: number;
   totalAmount: number;
-  salesOrder: CustomerHistoryBreakdown;
-  salesInvoice: CustomerHistoryBreakdown;
+  salesOrder?: CustomerHistoryBreakdown;
+  salesInvoice?: CustomerHistoryBreakdown;
 }
 
 export interface CustomerStoreOrder {
@@ -59,5 +62,6 @@ export interface CustomerDetail {
   profile: CustomerProfile;
   history: CustomerHistory;
   store_orders: CustomerStoreOrder[];
-  sms_logs: Record<string, unknown>[];
+  sms_logs: SmsLogItem[];
+  zoho_tickets: TicketItem[];
 }
