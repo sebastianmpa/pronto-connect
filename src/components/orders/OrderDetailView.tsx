@@ -101,15 +101,7 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
                     {label}
                   </span>
                   {stepDate && (
-                    <span
-                      className={`text-[11px] text-center ${
-                        completed
-                          ? "text-green-500 dark:text-green-400/80"
-                          : current
-                            ? "text-blue-500 dark:text-blue-400/80"
-                            : "text-gray-400"
-                      }`}
-                    >
+                    <span className="text-[11px] text-center text-gray-600 dark:text-gray-400">
                       {stepDate}
                     </span>
                   )}
