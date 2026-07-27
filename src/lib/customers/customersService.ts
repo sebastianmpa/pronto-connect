@@ -28,9 +28,15 @@ const customersService = {
     email: string,
     id: string
   ): Promise<CustomerDetail> {
+    const p: Record<string, string> = {
+      // "ideal" isn't a real store URL — the API 404s if it's sent, so omit it.
+      ...(store && store !== "ideal" && { store }),
+      email,
+      id,
+    };
     const res = await apiClient.get<CustomerDetail>(
       "/customers/atc/v0/by-store/details",
-      { params: { store, email, id } }
+      { params: p }
     );
     return res.data;
   },

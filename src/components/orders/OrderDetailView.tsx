@@ -50,8 +50,18 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
               const segmentBeforeDone = i > 0 && i - 1 < currentIndex;
               // The segment right after this circle is "done" once this circle itself is completed.
               const segmentAfterDone = completed;
+              // Step 1 always keeps the order's own date; other steps show "Done" once passed,
+              // or the status date from the API while they're the current step.
+              const stepDate =
+                i === 0
+                  ? fmtStatusDate(order.header?.date_created)
+                  : completed
+                    ? "Done"
+                    : current
+                      ? fmtStatusDate(order.customer_service_status?.date)
+                      : null;
               return (
-                <div key={label} className="flex flex-1 flex-col items-center last:flex-none">
+                <div key={label} className="flex flex-1 flex-col items-center">
                   <div className="relative flex h-9 w-full items-center justify-center">
                     {i > 0 && (
                       <div
@@ -90,6 +100,19 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
                   >
                     {label}
                   </span>
+                  {stepDate && (
+                    <span
+                      className={`text-[11px] text-center ${
+                        completed
+                          ? "text-green-500 dark:text-green-400/80"
+                          : current
+                            ? "text-blue-500 dark:text-blue-400/80"
+                            : "text-gray-400"
+                      }`}
+                    >
+                      {stepDate}
+                    </span>
+                  )}
                 </div>
               );
             })}

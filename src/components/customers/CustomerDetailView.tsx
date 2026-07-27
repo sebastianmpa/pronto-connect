@@ -111,61 +111,61 @@ export default function CustomerDetailView({ detail }: { detail: CustomerDetailT
         </div>
       </div>
 
-      {/* Store Orders, SMS Logs & Tickets — side by side */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        {/* Store Orders */}
-        <div>
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Store Orders ({storeOrders.length})
-          </p>
-          {storeOrders.length > 0 ? (
-            <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/[0.06]">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-white/[0.03]">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Store</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Order #</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                    <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
-                    <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400"></th>
+      {/* Store Orders — full width */}
+      <div>
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Store Orders ({storeOrders.length})
+        </p>
+        {storeOrders.length > 0 ? (
+          <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/[0.06]">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-white/[0.03]">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Store</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Order #</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                  <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
+                  <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                {storeOrders.map((o, i) => (
+                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      {storeLabel(o.store)}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                      {o.latest_order_number}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                      {fmtDate(o.latest_order_date)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                      {fmtCurrency(o.latest_order_total)}
+                    </td>
+                    <td className="px-3 py-3 text-center">
+                      <button
+                        onClick={() => navigate(`/orders/${o.latest_order_number}`, { state: backState })}
+                        title="View order detail"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                      >
+                        <EyeIcon />
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                  {storeOrders.map((o, i) => (
-                    <tr key={i} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {storeLabel(o.store)}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
-                        {o.latest_order_number}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                        {fmtDate(o.latest_order_date)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
-                        {fmtCurrency(o.latest_order_total)}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        <button
-                          onClick={() => navigate(`/orders/${o.latest_order_number}`, { state: backState })}
-                          title="View order detail"
-                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
-                        >
-                          <EyeIcon />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
-              No store orders found.
-            </p>
-          )}
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
+            No store orders found.
+          </p>
+        )}
+      </div>
 
+      {/* SMS Logs & Tickets — side by side */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {/* SMS Logs */}
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
