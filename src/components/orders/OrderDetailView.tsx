@@ -1,20 +1,22 @@
+import DOMPurify from "dompurify";
+import { formatDate, formatDateTime } from "../../utils/date";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
+
+// The customer status message can contain HTML (e.g. tracking links), so sanitize before rendering.
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "br", "p", "a", "span"],
+    ALLOWED_ATTR: ["href", "target", "rel"],
+  });
+}
 
 function fmt(val: string): string {
   const n = parseFloat(val);
   return isNaN(n) ? val : `$${n.toFixed(2)}`;
 }
 
-function fmtDate(raw: string): string {
-  if (!raw) return "—";
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? raw : d.toLocaleString();
-}
-
-function fmtStatusDate(raw?: string): string | null {
-  if (!raw) return null;
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
+function fmtStatusDate(raw?: string | null): string | null {
+  return raw ? formatDate(raw) : null;
 }
 
 const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
@@ -29,7 +31,7 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
             Order #{order.order_number}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {fmtDate(order.header?.date_created)} &middot; via{" "}
+            {formatDateTime(order.header?.date_created)} &middot; via{" "}
             <span className="capitalize">{order.source}</span>
           </p>
         </div>
@@ -110,9 +112,13 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
             })}
           </div>
           {(order.customer_service_status.customer_message || fmtStatusDate(order.customer_service_status.date)) && (
-            <div className="mt-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+            <div className="mt-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 [&_a]:font-semibold [&_a]:underline">
               {order.customer_service_status.customer_message && (
-                <p>{order.customer_service_status.customer_message}</p>
+                <p
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeHtml(order.customer_service_status.customer_message),
+                  }}
+                />
               )}
               {fmtStatusDate(order.customer_service_status.date) && (
                 <p className={order.customer_service_status.customer_message ? "mt-1 text-xs opacity-80" : "text-xs opacity-80"}>
