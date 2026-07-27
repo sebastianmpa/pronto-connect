@@ -1,4 +1,14 @@
+import DOMPurify from "dompurify";
 import type { TicketDetail as TicketDetailType } from "../../lib/tickets/types";
+
+// Zoho ticket description/resolution come as HTML (with customer-submitted text interpolated
+// unescaped by the backend), so sanitize before rendering to avoid stored XSS.
+function sanitizeHtml(html: string): string {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["b", "strong", "i", "em", "u", "br", "p", "ul", "ol", "li", "a", "span"],
+    ALLOWED_ATTR: ["href", "target", "rel"],
+  });
+}
 
 function fmtDate(raw: string | null): string {
   if (!raw) return "—";
@@ -128,17 +138,19 @@ export default function TicketDetailView({ ticket }: { ticket: TicketDetailType 
           {ticket.description && (
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Description</p>
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-gray-300">
-                {ticket.description}
-              </div>
+              <div
+                className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-gray-300"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.description) }}
+              />
             </div>
           )}
           {ticket.resolution && (
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Resolution</p>
-              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-gray-300">
-                {ticket.resolution}
-              </div>
+              <div
+                className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-gray-300"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(ticket.resolution) }}
+              />
             </div>
           )}
         </div>

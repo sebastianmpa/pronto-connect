@@ -10,7 +10,6 @@ export default function CustomerDetail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const store = searchParams.get("store") ?? "";
   const email = searchParams.get("email") ?? "";
   const id = searchParams.get("id") ?? "";
 
@@ -19,15 +18,15 @@ export default function CustomerDetail() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!store || !id) return;
+    if (!id) return;
     setLoading(true);
     setError(null);
     customersService
-      .getDetail(store, email, id)
+      .getDetail(email, id)
       .then(setDetail)
       .catch(() => setError("Could not load customer details. Please try again."))
       .finally(() => setLoading(false));
-  }, [store, email, id]);
+  }, [email, id]);
 
   return (
     <>

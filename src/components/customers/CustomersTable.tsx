@@ -20,7 +20,6 @@ const STORES = [
   { label: "Husqv Parts", value: "https://www.husqvparts.com" },
   { label: "Hydro Gear Parts", value: "https://www.hydrogear.parts" },
   { label: "Small Engines Pro Dealer", value: "https://www.smallenginesprodealer.com" },
-  { label: "Ideal", value: "ideal" },
 ];
 
 const EyeIcon = () => (

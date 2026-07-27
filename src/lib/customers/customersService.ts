@@ -23,20 +23,11 @@ const customersService = {
     return res.data;
   },
 
-  async getDetail(
-    store: string,
-    email: string,
-    id: string
-  ): Promise<CustomerDetail> {
-    const p: Record<string, string> = {
-      // "ideal" isn't a real store URL — the API 404s if it's sent, so omit it.
-      ...(store && store !== "ideal" && { store }),
-      email,
-      id,
-    };
+  async getDetail(email: string, id: string): Promise<CustomerDetail> {
+    // The "store" param is no longer accepted by this endpoint — don't send it.
     const res = await apiClient.get<CustomerDetail>(
       "/customers/atc/v0/by-store/details",
-      { params: p }
+      { params: { email, id } }
     );
     return res.data;
   },

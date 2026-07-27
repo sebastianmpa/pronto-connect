@@ -99,14 +99,6 @@ export default function CustomerDetailView({ detail }: { detail: CustomerDetailT
               <p className="text-xl font-bold text-gray-800 dark:text-white/90">{fmtCurrency(detail.history.totalAmount)}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
             </div>
-            <div className="rounded-lg bg-gray-50 dark:bg-white/[0.03] p-3 text-center">
-              <p className="text-lg font-semibold text-gray-700 dark:text-white/80">{detail.history.salesOrder?.totalOrders ?? 0}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Sales Orders</p>
-            </div>
-            <div className="rounded-lg bg-gray-50 dark:bg-white/[0.03] p-3 text-center">
-              <p className="text-lg font-semibold text-gray-700 dark:text-white/80">{detail.history.salesInvoice?.totalOrders ?? 0}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Invoices</p>
-            </div>
           </div>
         </div>
       </div>
