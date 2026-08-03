@@ -9,6 +9,8 @@ import CustomersList from "./pages/Customers/CustomersList";
 import CustomerDetail from "./pages/Customers/CustomerDetail";
 import TicketsList from "./pages/Tickets/TicketsList";
 import TicketDetail from "./pages/Tickets/TicketDetail";
+import SmsTemplatesList from "./pages/SmsTemplates/SmsTemplatesList";
+import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -68,6 +70,8 @@ import Success from "./pages/OtherPage/Success";
 import AppLayout from "./layout/AppLayout";
 import AlternativeLayout from "./layout/AlternativeLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
+import { GoToConnectProvider } from "./context/GoToConnectContext";
+import CallToast from "./components/goToConnect/CallToast";
 import TaskList from "./pages/Task/TaskList";
 import Saas from "./pages/Dashboard/Saas";
 import Logistics from "./pages/Dashboard/Logistics";
@@ -102,8 +106,10 @@ import CodeGeneratorPage from "./pages/Ai/Code/CodeGenerator";
 export default function App() {
   return (
     <>
+      <GoToConnectProvider>
       <Router>
         <ScrollToTop />
+        <CallToast />
         <Routes>
           {/* Protected: Dashboard Layout */}
           <Route element={<ProtectedRoute />}>
@@ -117,6 +123,8 @@ export default function App() {
             <Route path="/customers/detail" element={<CustomerDetail />} />
             <Route path="/tickets" element={<TicketsList />} />
             <Route path="/tickets/:id" element={<TicketDetail />} />
+            <Route path="/sms-templates" element={<SmsTemplatesList />} />
+            <Route path="/email-templates" element={<EmailTemplatesList />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />
@@ -246,6 +254,7 @@ export default function App() {
           <Route path="/coming-soon" element={<ComingSoon />} />
         </Routes>
       </Router>
+      </GoToConnectProvider>
     </>
   );
 }

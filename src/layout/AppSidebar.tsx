@@ -16,7 +16,8 @@ import {
   HorizontaLDots,
   // LayoutIcon,
   // ListIcon,
-  // MailIcon,
+  MailIcon,
+  EmailAltIcon,
   // MapIcon,
   // PageIcon,
   // PieChartIcon,
@@ -60,6 +61,16 @@ const navItems: NavItem[] = [
     icon: <TableIcon />,
     name: "SMS Logs",
     path: "/sms-logs",
+  },
+  {
+    icon: <MailIcon />,
+    name: "SMS Templates",
+    path: "/sms-templates",
+  },
+  {
+    icon: <EmailAltIcon />,
+    name: "Email Templates",
+    path: "/email-templates",
   },
   {
     icon: <CallIcon />,

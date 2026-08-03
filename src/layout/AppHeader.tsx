@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSidebar } from "../context/SidebarContext";
 import UserDropdown from "../components/header/UserDropdown";
+import CallNotificationDropdown from "../components/header/CallNotificationDropdown";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
@@ -50,11 +51,8 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-4 px-5 py-4 xl:flex shadow-theme-md xl:justify-end xl:px-0 xl:shadow-none`}
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
-            {/* <!-- Dark Mode Toggler --> */}
-            
-            {/* <!-- Dark Mode Toggler --> */}
-            
             {/* <!-- Notification Menu Area --> */}
+            <CallNotificationDropdown />
           </div>
           {/* <!-- User Area --> */}
           <UserDropdown />
