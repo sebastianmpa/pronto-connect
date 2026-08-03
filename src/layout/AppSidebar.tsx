@@ -18,6 +18,7 @@ import {
   // ListIcon,
   MailIcon,
   EmailAltIcon,
+  CloseLineIcon,
   // MapIcon,
   // PageIcon,
   // PieChartIcon,
@@ -76,6 +77,11 @@ const navItems: NavItem[] = [
     icon: <CallIcon />,
     name: "Tickets",
     path: "/tickets",
+  },
+  {
+    icon: <CloseLineIcon />,
+    name: "Cancellations",
+    path: "/cancellations",
   },
 ];
 

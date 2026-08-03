@@ -1,5 +1,6 @@
 import type { SmsLogItem } from "../sms-logs/types";
 import type { TicketItem } from "../tickets/types";
+import type { CancellationItem } from "../cancellations/types";
 
 export interface CustomersSearchParams {
   store_url: string;
@@ -64,4 +65,5 @@ export interface CustomerDetail {
   store_orders: CustomerStoreOrder[];
   sms_logs: SmsLogItem[];
   zoho_tickets: TicketItem[];
+  cancellations: CancellationItem[];
 }

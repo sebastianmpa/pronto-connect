@@ -11,6 +11,8 @@ import TicketsList from "./pages/Tickets/TicketsList";
 import TicketDetail from "./pages/Tickets/TicketDetail";
 import SmsTemplatesList from "./pages/SmsTemplates/SmsTemplatesList";
 import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
+import CancellationsList from "./pages/Cancellations/CancellationsList";
+import CancellationDetail from "./pages/Cancellations/CancellationDetail";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -125,6 +127,8 @@ export default function App() {
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/sms-templates" element={<SmsTemplatesList />} />
             <Route path="/email-templates" element={<EmailTemplatesList />} />
+            <Route path="/cancellations" element={<CancellationsList />} />
+            <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />

@@ -45,6 +45,10 @@ export interface OrderDetailItem {
   item_status: string;
   unit_price: string;
   total_price: string;
+  raw?: {
+    brand?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface BillingAddress {

@@ -1,5 +1,7 @@
 import DOMPurify from "dompurify";
+import { useModal } from "../../hooks/useModal";
 import { formatDate, formatDateTime } from "../../utils/date";
+import CancelOrderModal from "./CancelOrderModal";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 
 // The customer status message can contain HTML (e.g. tracking links), so sanitize before rendering.
@@ -21,7 +23,16 @@ function fmtStatusDate(raw?: string | null): string | null {
 
 const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
 
-export default function OrderDetailView({ order }: { order: OrderDetailType }) {
+export default function OrderDetailView({
+  order,
+  onCancelled,
+}: {
+  order: OrderDetailType;
+  onCancelled?: () => void;
+}) {
+  const cancelModal = useModal();
+  const isAlreadyCancelled = /cancel/i.test(order.status_text ?? "") || /cancel/i.test(order.business_status?.name ?? "");
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -35,10 +46,27 @@ export default function OrderDetailView({ order }: { order: OrderDetailType }) {
             <span className="capitalize">{order.source}</span>
           </p>
         </div>
-        <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
-          {order.status_text}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
+            {order.status_text}
+          </span>
+          {!isAlreadyCancelled && (
+            <button
+              onClick={cancelModal.openModal}
+              className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+            >
+              Cancel Order
+            </button>
+          )}
+        </div>
       </div>
+
+      <CancelOrderModal
+        isOpen={cancelModal.isOpen}
+        onClose={cancelModal.closeModal}
+        order={order}
+        onCancelled={onCancelled}
+      />
 
       {/* Progress stepper */}
       {order.customer_service_status && (

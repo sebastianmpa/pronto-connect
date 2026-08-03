@@ -2,43 +2,38 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
-import OrderDetailView from "../../components/orders/OrderDetailView";
-import ordersService from "../../lib/orders/ordersService";
-import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
+import CancellationDetailView from "../../components/cancellations/CancellationDetailView";
+import cancellationsService from "../../lib/cancellations/cancellationsService";
+import type { CancellationDetail as CancellationDetailType } from "../../lib/cancellations/types";
 
-export default function OrderDetail() {
-  const { orderNumber } = useParams<{ orderNumber: string }>();
+export default function CancellationDetail() {
+  const { salesOrderId } = useParams<{ salesOrderId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const backTo = (location.state as { from?: string } | null)?.from ?? "/orders";
+  const backTo = (location.state as { from?: string } | null)?.from ?? "/cancellations";
 
-  const [order, setOrder] = useState<OrderDetailType | null>(null);
+  const [cancellation, setCancellation] = useState<CancellationDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderNumber) return;
+    if (!salesOrderId) return;
     setLoading(true);
     setError(null);
-    ordersService
-      .getOrderDetail(orderNumber)
-      .then(setOrder)
-      .catch(() => setError("Could not load order details. Please try again."))
+    cancellationsService
+      .getById(salesOrderId)
+      .then(setCancellation)
+      .catch(() => setError("Could not load cancellation details. Please try again."))
       .finally(() => setLoading(false));
-  }, [orderNumber]);
-
-  const refetch = () => {
-    if (!orderNumber) return;
-    ordersService.getOrderDetail(orderNumber).then(setOrder).catch(() => {});
-  };
+  }, [salesOrderId]);
 
   return (
     <>
       <PageMeta
-        title={`Order #${orderNumber} | Pronto Connect`}
-        description="Order detail"
+        title={`Cancellation #${salesOrderId} | Pronto Connect`}
+        description="Cancellation detail"
       />
-      <PageBreadcrumb pageTitle="Order Detail" />
+      <PageBreadcrumb pageTitle="Cancellation Detail" />
 
       <div className="rounded-2xl bg-white p-6 dark:bg-gray-900 shadow-sm">
         {/* Back button */}
@@ -67,7 +62,7 @@ export default function OrderDetail() {
           </div>
         )}
 
-        {!loading && !error && order && <OrderDetailView order={order} onCancelled={refetch} />}
+        {!loading && !error && cancellation && <CancellationDetailView cancellation={cancellation} />}
       </div>
     </>
   );

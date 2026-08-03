@@ -40,6 +40,7 @@ export default function CustomerDetailView({ detail }: { detail: CustomerDetailT
   const storeOrders = detail.store_orders ?? [];
   const smsLogs = detail.sms_logs ?? [];
   const zohoTickets = detail.zoho_tickets ?? [];
+  const cancellations = detail.cancellations ?? [];
 
   return (
     <div className="space-y-6">
@@ -156,8 +157,8 @@ export default function CustomerDetailView({ detail }: { detail: CustomerDetailT
         )}
       </div>
 
-      {/* SMS Logs & Tickets — side by side */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      {/* SMS Logs, Tickets & Cancellations — side by side */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* SMS Logs */}
         <div>
           <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -266,6 +267,63 @@ export default function CustomerDetailView({ detail }: { detail: CustomerDetailT
           ) : (
             <p className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
               No tickets found for this customer.
+            </p>
+          )}
+        </div>
+
+        {/* Cancellations */}
+        <div>
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Cancellations ({cancellations.length})
+          </p>
+          {cancellations.length > 0 ? (
+            <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/[0.06]">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-white/[0.03]">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Order #</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Type</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
+                    <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                  {cancellations.map((c) => (
+                    <tr key={c.salesOrderId} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                      <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                        {c.orderNumber}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            c.type === "Total"
+                              ? "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400"
+                              : "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400"
+                          }`}
+                        >
+                          {c.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                        {fmtDate(c.cancellationDate)}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        <button
+                          onClick={() => navigate(`/cancellations/${c.salesOrderId}`, { state: backState })}
+                          title="View cancellation detail"
+                          className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                        >
+                          <EyeIcon />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
+              No cancellations found for this customer.
             </p>
           )}
         </div>
