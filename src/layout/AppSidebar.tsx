@@ -15,10 +15,12 @@ import {
   // HorizontaLDots,
   HorizontaLDots,
   // LayoutIcon,
-  // ListIcon,
+  ListIcon,
+  KeyIcon,
   MailIcon,
   EmailAltIcon,
   CloseLineIcon,
+  CheckCircleIcon,
   // MapIcon,
   // PageIcon,
   // PieChartIcon,
@@ -26,7 +28,8 @@ import {
   TableIcon,
   GroupIcon,
   // TaskIcon,
-  // UserCircleIcon,
+  UserCircleIcon,
+  MultiUserIcon,
 } from "../icons";
 import { cn } from "../utils";
 import SidebarWidget from "./SidebarWidget";
@@ -82,6 +85,31 @@ const navItems: NavItem[] = [
     icon: <CloseLineIcon />,
     name: "Cancellations",
     path: "/cancellations",
+  },
+  {
+    icon: <CheckCircleIcon />,
+    name: "Closure Methods",
+    path: "/closure-methods",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Contact Reasons",
+    path: "/contact-reasons",
+  },
+  {
+    icon: <KeyIcon />,
+    name: "Permissions",
+    path: "/permissions",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Roles",
+    path: "/roles",
+  },
+  {
+    icon: <MultiUserIcon />,
+    name: "Users",
+    path: "/users",
   },
 ];
 

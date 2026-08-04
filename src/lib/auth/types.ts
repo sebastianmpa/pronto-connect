@@ -20,6 +20,7 @@ export interface JwtPayload {
   name: string;
   email: string;
   role_id: string;
+  extension_number?: string;
   /** Issued-at (Unix seconds) */
   iat: number;
   /** Expiration (Unix seconds) */
@@ -32,4 +33,5 @@ export interface AuthUser {
   name: string;
   email: string;
   roleId: string;
+  extensionNumber?: string;
 }

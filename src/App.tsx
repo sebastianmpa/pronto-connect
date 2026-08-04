@@ -13,6 +13,11 @@ import SmsTemplatesList from "./pages/SmsTemplates/SmsTemplatesList";
 import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
 import CancellationsList from "./pages/Cancellations/CancellationsList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
+import ClosureMethodsList from "./pages/ClosureMethods/ClosureMethodsList";
+import ContactReasonsList from "./pages/ContactReasons/ContactReasonsList";
+import PermissionsList from "./pages/Permissions/PermissionsList";
+import RolesList from "./pages/Roles/RolesList";
+import UsersList from "./pages/Users/UsersList";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -129,6 +134,11 @@ export default function App() {
             <Route path="/email-templates" element={<EmailTemplatesList />} />
             <Route path="/cancellations" element={<CancellationsList />} />
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
+            <Route path="/closure-methods" element={<ClosureMethodsList />} />
+            <Route path="/contact-reasons" element={<ContactReasonsList />} />
+            <Route path="/permissions" element={<PermissionsList />} />
+            <Route path="/roles" element={<RolesList />} />
+            <Route path="/users" element={<UsersList />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />

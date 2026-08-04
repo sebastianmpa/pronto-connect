@@ -38,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
             name: decoded.name,
             email: decoded.email,
             roleId: decoded.role_id,
+            extensionNumber: decoded.extension_number,
           };
           set({ token, user, isAuthenticated: true });
         } catch {

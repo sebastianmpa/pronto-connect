@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useSidebar } from "../context/SidebarContext";
 import UserDropdown from "../components/header/UserDropdown";
-import CallNotificationDropdown from "../components/header/CallNotificationDropdown";
+import LatestCallStatus from "../components/header/LatestCallStatus";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
@@ -52,7 +52,7 @@ const AppHeader: React.FC = () => {
         >
           <div className="flex items-center gap-2 2xsm:gap-3">
             {/* <!-- Notification Menu Area --> */}
-            <CallNotificationDropdown />
+            <LatestCallStatus />
           </div>
           {/* <!-- User Area --> */}
           <UserDropdown />
