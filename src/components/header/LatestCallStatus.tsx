@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useGoToConnect } from "../../context/GoToConnectContext";
 import { getCallerInfo, getQueueName } from "../../lib/goToConnect/callInfo";
@@ -49,6 +49,14 @@ export default function LatestCallStatus() {
       setCustomerSearchLoading(false);
     }
   };
+
+  // Auto-trigger the customer lookup as soon as a new call notification comes in —
+  // no click needed. Keyed on localId so it only fires once per call, not on every render.
+  useEffect(() => {
+    if (!latest) return;
+    goToCustomerDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latest?.localId]);
 
   const statusLabel =
     status === "connected"
