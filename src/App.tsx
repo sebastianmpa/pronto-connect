@@ -18,6 +18,7 @@ import ContactReasonsList from "./pages/ContactReasons/ContactReasonsList";
 import PermissionsList from "./pages/Permissions/PermissionsList";
 import RolesList from "./pages/Roles/RolesList";
 import UsersList from "./pages/Users/UsersList";
+import ClientRequestsList from "./pages/ClientRequests/ClientRequestsList";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -139,6 +140,7 @@ export default function App() {
             <Route path="/permissions" element={<PermissionsList />} />
             <Route path="/roles" element={<RolesList />} />
             <Route path="/users" element={<UsersList />} />
+            <Route path="/client-requests" element={<ClientRequestsList />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />

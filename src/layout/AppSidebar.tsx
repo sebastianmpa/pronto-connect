@@ -30,6 +30,7 @@ import {
   // TaskIcon,
   UserCircleIcon,
   MultiUserIcon,
+  FilesIcon,
 } from "../icons";
 import { cn } from "../utils";
 import SidebarWidget from "./SidebarWidget";
@@ -110,6 +111,11 @@ const navItems: NavItem[] = [
     icon: <MultiUserIcon />,
     name: "Users",
     path: "/users",
+  },
+  {
+    icon: <FilesIcon />,
+    name: "Client Requests",
+    path: "/client-requests",
   },
 ];
 
