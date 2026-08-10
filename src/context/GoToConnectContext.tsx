@@ -64,13 +64,40 @@ export const GoToConnectProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     socketRef.current = socket;
 
-    socket.on("connect", () => setStatus("connected"));
-    socket.on("disconnect", () => setStatus("disconnected"));
-    socket.on("connect_error", () => setStatus("error"));
+    socket.on("connect", () => {
+      console.info("[GoToConnect] connected", socket.id);
+      setStatus("connected");
+    });
+    socket.on("disconnect", (reason) => {
+      console.info("[GoToConnect] disconnected:", reason);
+      setStatus("disconnected");
+    });
+    socket.on("connect_error", (error) => {
+      const details = error as Error & { description?: unknown; context?: unknown };
+      console.error(
+        "[GoToConnect] connect_error:",
+        details.message,
+        "| description:",
+        details.description,
+        "| context:",
+        details.context
+      );
+      setStatus("error");
+    });
+
+    // The server assigns this socket to a room (based on the auth token) before it will
+    // start emitting call-answered events — log both outcomes so a silent failure is visible.
+    socket.on("goto-connect:room-joined", (roomData) => {
+      console.info("[GoToConnect] room joined:", roomData);
+    });
+    socket.on("goto-connect:room-join-error", (errorData) => {
+      console.error("[GoToConnect] room join error:", errorData);
+    });
 
     socket.on(
       "goto-connect:call-answered",
       (payload: GoToConnectCallAnsweredEvent) => {
+        console.info("[GoToConnect] call-answered received:", payload);
         const notification: CallNotification = {
           localId: `${payload.conversationId}-${payload.occurredAt}`,
           receivedAt: Date.now(),
