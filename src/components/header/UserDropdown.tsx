@@ -2,6 +2,13 @@ import { useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { useAuthStore } from "../../store/authStore";
 
+function getInitials(name?: string): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const initials = parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : parts[0].slice(0, 2);
+  return initials.toUpperCase();
+}
+
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const { logout, user } = useAuthStore();
@@ -19,8 +26,8 @@ export default function UserDropdown() {
         onClick={toggleDropdown}
         className="flex items-center text-gray-700 dropdown-toggle dark:text-gray-400"
       >
-        <span className="mr-3 overflow-hidden rounded-full h-11 w-11">
-          <img src="/images/user/owner.png" alt="User" />
+        <span className="mr-3 flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-brand-500 text-sm font-semibold text-gray-900">
+          {getInitials(user?.name)}
         </span>
 
         <span className="block mr-1 font-medium text-theme-sm">{user?.name ?? "User"}</span>
