@@ -11,6 +11,8 @@ import TicketsList from "./pages/Tickets/TicketsList";
 import TicketDetail from "./pages/Tickets/TicketDetail";
 import SmsTemplatesList from "./pages/SmsTemplates/SmsTemplatesList";
 import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
+import EmailLogsList from "./pages/EmailLogs/EmailLogsList";
+import EmailLogDetail from "./pages/EmailLogs/EmailLogDetail";
 import CancellationsList from "./pages/Cancellations/CancellationsList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
 import ClosureMethodsList from "./pages/ClosureMethods/ClosureMethodsList";
@@ -135,6 +137,8 @@ export default function App() {
             <Route path="/tickets/:id" element={<TicketDetail />} />
             <Route path="/sms-templates" element={<SmsTemplatesList />} />
             <Route path="/email-templates" element={<EmailTemplatesList />} />
+            <Route path="/email-logs" element={<EmailLogsList />} />
+            <Route path="/email-logs/:id" element={<EmailLogDetail />} />
             <Route path="/cancellations" element={<CancellationsList />} />
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
             <Route path="/closure-methods" element={<ClosureMethodsList />} />

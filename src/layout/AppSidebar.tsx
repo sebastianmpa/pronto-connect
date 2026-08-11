@@ -83,6 +83,11 @@ const navItems: NavItem[] = [
     path: "/email-templates",
   },
   {
+    icon: <TableIcon />,
+    name: "Email Logs",
+    path: "/email-logs",
+  },
+  {
     icon: <CallIcon />,
     name: "Tickets",
     path: "/tickets",

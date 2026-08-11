@@ -403,29 +403,29 @@ export default function CustomerContactsTable() {
               </svg>
             </div>
           ) : (
-            <Table className="min-w-[1360px] table-fixed">
+            <Table className="w-full table-fixed">
               <TableHeader className="sticky top-0 z-10 border-t border-gray-100 bg-white dark:border-white/[0.05] dark:bg-gray-900">
                 <TableRow>
                   {[
-                    { label: "Detail", width: "w-[74px]" },
-                    { label: "Request", width: "w-[82px]" },
-                    { label: "Order #", width: "w-[110px]" },
-                    { label: "Customer ID", width: "w-[96px]" },
-                    { label: "Customer", width: "w-[150px]" },
-                    { label: "Phone", width: "w-[120px]" },
-                    { label: "Email", width: "w-[210px]" },
-                    { label: "Order Date", width: "w-[105px]" },
-                    { label: "On-hold Reason", width: "w-[110px]" },
-                    { label: "Last Contacted", width: "w-[135px]" },
-                    { label: "Contacts", width: "w-[76px]" },
-                    { label: "Notes", width: "w-[190px]" },
+                    { label: "Detail", width: "w-[4%]" },
+                    { label: "Request", width: "w-[5%]" },
+                    { label: "Order #", width: "w-[8%]" },
+                    { label: "Customer ID", width: "w-[7%]" },
+                    { label: "Customer", width: "w-[11%]" },
+                    { label: "Phone", width: "w-[9%]" },
+                    { label: "Email", width: "w-[15%]" },
+                    { label: "Order Date", width: "w-[8%]" },
+                    { label: "On-hold Reason", width: "w-[9%]" },
+                    { label: "Last Contacted", width: "w-[10%]" },
+                    { label: "Contacts", width: "w-[5%]" },
+                    { label: "Notes", width: "w-[9%]" },
                   ].map((header) => (
                     <TableCell
                       key={header.label}
                       isHeader
-                      className={`${header.width} border border-gray-100 px-3 py-3 dark:border-white/[0.05]`}
+                      className={`${header.width} border border-gray-100 px-1.5 py-2 align-middle dark:border-white/[0.05]`}
                     >
-                      <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">
+                      <p className="text-center text-[11px] font-medium leading-4 text-gray-700 dark:text-gray-400">
                         {header.label}
                       </p>
                     </TableCell>
@@ -451,16 +451,16 @@ export default function CustomerContactsTable() {
 
                     return (
                       <TableRow key={`${item.type}-${item.order_id}-${contactRequestId ?? "new"}`}>
-                        <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
+                        <TableCell className="border border-gray-100 px-1 py-2 text-center align-middle dark:border-white/[0.05]">
                           {contactRequestId ? (
                             <button
                               type="button"
                               onClick={() => openDetail(item)}
                               title="View customer contact detail"
                               aria-label="View customer contact detail"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
                             >
-                              <DetailIcon className="h-5 w-5" />
+                              <DetailIcon className="h-4 w-4" />
                             </button>
                           ) : (
                             <span
@@ -471,7 +471,7 @@ export default function CustomerContactsTable() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
+                        <TableCell className="border border-gray-100 px-1 py-2 text-center align-middle dark:border-white/[0.05]">
                           <button
                             type="button"
                             onClick={() => void openRequestModal(item)}
@@ -488,8 +488,8 @@ export default function CustomerContactsTable() {
                             }
                             className={
                               contactRequestId
-                                ? "inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 disabled:cursor-wait disabled:opacity-50 dark:hover:bg-brand-500/10"
-                                : "inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-500 transition-colors hover:bg-brand-100 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-500/10 dark:hover:bg-brand-500/20"
+                                ? "inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 disabled:cursor-wait disabled:opacity-50 dark:hover:bg-brand-500/10"
+                                : "inline-flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-500 transition-colors hover:bg-brand-100 disabled:cursor-wait disabled:opacity-50 dark:bg-brand-500/10 dark:hover:bg-brand-500/20"
                             }
                           >
                             {loadingRequestId === contactRequestId && contactRequestId ? (
@@ -514,57 +514,57 @@ export default function CustomerContactsTable() {
                                 />
                               </svg>
                             ) : contactRequestId ? (
-                              <PencilIcon className="h-5 w-5" />
+                              <PencilIcon className="h-4 w-4" />
                             ) : (
-                              <PlusIcon className="h-5 w-5" />
+                              <PlusIcon className="h-4 w-4" />
                             )}
                           </button>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="break-all border border-gray-100 px-1.5 py-2 align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {item.order_number ?? item.order_id ?? "—"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="break-all border border-gray-100 px-1.5 py-2 align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {item.customer_id || "—"}
                         </TableCell>
-                        <TableCell className="border border-gray-100 px-3 py-3 dark:border-white/[0.05]">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 align-top dark:border-white/[0.05]">
                           <p
-                            className="truncate font-medium text-gray-800 text-theme-sm dark:text-white/90"
+                            className="break-words text-xs font-medium leading-4 text-gray-800 dark:text-white/90"
                             title={item.customer_name || undefined}
                           >
                             {item.customer_name || "—"}
                           </p>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="break-words border border-gray-100 px-1.5 py-2 align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {item.phone || "—"}
                         </TableCell>
-                        <TableCell className="border border-gray-100 px-3 py-3 lowercase text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 align-top lowercase text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           <span
-                            className="block truncate"
+                            className="block break-all leading-4"
                             title={item.email || undefined}
                           >
                             {item.email || "—"}
                           </span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 text-center align-top text-[11px] leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {formatDate(item.order_date)}
                         </TableCell>
-                        <TableCell className="border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           <span
-                            className="block truncate"
+                            className="block break-words leading-4"
                             title={item.onhold_reason || undefined}
                           >
                             {item.onhold_reason || "—"}
                           </span>
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 text-center align-top text-[11px] leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {formatDateTime(item.last_contacted)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-center text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1 py-2 text-center align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           {item.contact_count}
                         </TableCell>
-                        <TableCell className="border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                        <TableCell className="border border-gray-100 px-1.5 py-2 align-top text-xs leading-4 text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                           <span
-                            className="block truncate"
+                            className="block break-words leading-4"
                             title={item.notes || undefined}
                           >
                             {item.notes || "—"}
