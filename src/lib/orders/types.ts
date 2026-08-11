@@ -1,8 +1,8 @@
 // ─── Query params ─────────────────────────────────────────────────────────────
 
 export interface OrdersSearchParams {
-  startDate: string;   // YYYY-MM-DD
-  endDate: string;     // YYYY-MM-DD
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   limit?: number;
   page?: number;
   name?: string;
@@ -110,6 +110,81 @@ export interface CustomerServiceStatus {
   date?: string;
 }
 
+// ─── Client requests / activity included in order detail ─────────────────────
+
+export interface OrderAtcForm {
+  id: number;
+  order_number: string;
+  form_type: string;
+  form_sub_type: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface OrderCancellation {
+  salesOrderId: number | string;
+  orderNumber: string;
+  orderDate: string;
+  cancellationDate: string | null;
+  reason: string | null;
+  type: string | null;
+}
+
+export interface OrderContactRequest {
+  id: number;
+  order_id: number | string;
+  po?: string | null;
+  customer_id?: number | string | null;
+  customer_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  order_date?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  contact_user?: string | null;
+  date?: string | null;
+}
+
+export interface OrderCustomerContact {
+  id: number;
+  order_id: number | string;
+  po: string | null;
+  contact_request_id: number | null;
+  customer_id?: number | string | null;
+  order_date: string | null;
+  reason: string | null;
+  result: string | null;
+  notes?: string | null;
+  contact_type: string | null;
+  contact_datetime: string | null;
+  order_value?: number | string | null;
+  calls: number;
+  emails: number;
+  text_messages: number;
+  contact_user?: string | null;
+}
+
+export interface OrderSmsLog {
+  id: number;
+  order_number: string;
+  status: string | null;
+  sent_at: string | null;
+  order_status: string | null;
+  message?: string | null;
+  phone?: string | null;
+}
+
+export interface OrderEmailLog {
+  id: number;
+  order_number: string;
+  subject: string | null;
+  status: string | null;
+  sent_at: string | null;
+  order_status: string | null;
+  recipient?: string | null;
+}
+
 export interface OrderDetail {
   order_number: string;
   source: string;
@@ -121,4 +196,12 @@ export interface OrderDetail {
   items: OrderDetailItem[];
   shipping_addresses: ShippingAddress[];
   shipments: unknown[];
+
+  // The order detail endpoint now includes the most recent ATC/client activity.
+  atc_forms?: OrderAtcForm[];
+  cancellations?: OrderCancellation[];
+  contact_requests?: OrderContactRequest[];
+  customer_contacts?: OrderCustomerContact[];
+  sms_logs?: OrderSmsLog[];
+  email_logs?: OrderEmailLog[];
 }

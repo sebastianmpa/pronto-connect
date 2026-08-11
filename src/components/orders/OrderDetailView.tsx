@@ -2,6 +2,7 @@ import DOMPurify from "dompurify";
 import { useModal } from "../../hooks/useModal";
 import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
+import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 
 // The customer status message can contain HTML (e.g. tracking links), so sanitize before rendering.
@@ -158,48 +159,69 @@ export default function OrderDetailView({
         </div>
       )}
 
-      {/* Addresses */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {order.header?.billing_address && (
-          <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Billing</p>
-            <p className="font-medium text-gray-800 dark:text-white/90">
-              {order.header.billing_address.first_name} {order.header.billing_address.last_name}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.street_1}</p>
-            {order.header.billing_address.street_2 && (
-              <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.street_2}</p>
-            )}
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {order.header.billing_address.city}, {order.header.billing_address.state}{" "}
-              {order.header.billing_address.zip}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.country}</p>
-            {order.header.billing_address.phone && (
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.phone}</p>
-            )}
-            {order.header.billing_address.email && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 lowercase">{order.header.billing_address.email}</p>
-            )}
-          </div>
-        )}
+      {/* Customer information + latest client requests/activity */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.38fr)]">
+        {/* Billing and Shipping remain on the left, one below the other. */}
+        <div className="space-y-4">
+          {order.header?.billing_address && (
+            <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Billing</p>
+              <p className="font-medium text-gray-800 dark:text-white/90">
+                {order.header.billing_address.first_name} {order.header.billing_address.last_name}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.street_1}</p>
+              {order.header.billing_address.street_2 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.street_2}</p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {order.header.billing_address.city}, {order.header.billing_address.state}{" "}
+                {order.header.billing_address.zip}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.country}</p>
+              {order.header.billing_address.phone && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{order.header.billing_address.phone}</p>
+              )}
+              {order.header.billing_address.email && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 lowercase">{order.header.billing_address.email}</p>
+              )}
+            </div>
+          )}
 
-        {order.shipping_addresses?.[0] && (
-          <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Shipping</p>
-            <p className="font-medium text-gray-800 dark:text-white/90">
-              {order.shipping_addresses[0].first_name} {order.shipping_addresses[0].last_name}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].street_1}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {order.shipping_addresses[0].city}, {order.shipping_addresses[0].state}{" "}
-              {order.shipping_addresses[0].zip}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].country}</p>
-            <p className="mt-2 text-xs text-gray-400">Method: {order.shipping_addresses[0].shipping_method}</p>
-            <p className="text-xs text-gray-400">Shipping: {fmt(order.shipping_addresses[0].cost_inc_tax)}</p>
-          </div>
-        )}
+          {order.shipping_addresses?.[0] && (
+            <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Shipping</p>
+              <p className="font-medium text-gray-800 dark:text-white/90">
+                {order.shipping_addresses[0].first_name} {order.shipping_addresses[0].last_name}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].street_1}</p>
+              {order.shipping_addresses[0].street_2 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].street_2}</p>
+              )}
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {order.shipping_addresses[0].city}, {order.shipping_addresses[0].state}{" "}
+                {order.shipping_addresses[0].zip}
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].country}</p>
+              {order.shipping_addresses[0].phone && (
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{order.shipping_addresses[0].phone}</p>
+              )}
+              {order.shipping_addresses[0].email && (
+                <p className="text-sm text-gray-500 dark:text-gray-400 lowercase">{order.shipping_addresses[0].email}</p>
+              )}
+              <p className="mt-2 text-xs text-gray-400">Method: {order.shipping_addresses[0].shipping_method}</p>
+              <p className="text-xs text-gray-400">Shipping: {fmt(order.shipping_addresses[0].cost_inc_tax)}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Client Requests / Activity occupies the full right side of this section. */}
+        <OrderClientRequestsPanel
+          atcForms={order.atc_forms}
+          cancellations={order.cancellations}
+          customerContacts={order.customer_contacts}
+          smsLogs={order.sms_logs}
+          emailLogs={order.email_logs}
+        />
       </div>
 
       {/* Items table */}
