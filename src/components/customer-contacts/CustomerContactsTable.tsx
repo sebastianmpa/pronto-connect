@@ -526,31 +526,35 @@ export default function CustomerContactsTable() {
                         <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                           {item.customer_id || "—"}
                         </TableCell>
-                        <TableCell
-                          className="border border-gray-100 px-3 py-3 dark:border-white/[0.05]"
-                          title={item.customer_name || undefined}
-                        >
-                          <p className="truncate font-medium text-gray-800 text-theme-sm dark:text-white/90">
+                        <TableCell className="border border-gray-100 px-3 py-3 dark:border-white/[0.05]">
+                          <p
+                            className="truncate font-medium text-gray-800 text-theme-sm dark:text-white/90"
+                            title={item.customer_name || undefined}
+                          >
                             {item.customer_name || "—"}
                           </p>
                         </TableCell>
                         <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                           {item.phone || "—"}
                         </TableCell>
-                        <TableCell
-                          className="truncate border border-gray-100 px-3 py-3 lowercase text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400"
-                          title={item.email || undefined}
-                        >
-                          {item.email || "—"}
+                        <TableCell className="border border-gray-100 px-3 py-3 lowercase text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                          <span
+                            className="block truncate"
+                            title={item.email || undefined}
+                          >
+                            {item.email || "—"}
+                          </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                           {formatDate(item.order_date)}
                         </TableCell>
-                        <TableCell
-                          className="truncate border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400"
-                          title={item.onhold_reason || undefined}
-                        >
-                          {item.onhold_reason || "—"}
+                        <TableCell className="border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                          <span
+                            className="block truncate"
+                            title={item.onhold_reason || undefined}
+                          >
+                            {item.onhold_reason || "—"}
+                          </span>
                         </TableCell>
                         <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                           {formatDateTime(item.last_contacted)}
@@ -558,11 +562,13 @@ export default function CustomerContactsTable() {
                         <TableCell className="whitespace-nowrap border border-gray-100 px-3 py-3 text-center text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                           {item.contact_count}
                         </TableCell>
-                        <TableCell
-                          className="truncate border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400"
-                          title={item.notes || undefined}
-                        >
-                          {item.notes || "—"}
+                        <TableCell className="border border-gray-100 px-3 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
+                          <span
+                            className="block truncate"
+                            title={item.notes || undefined}
+                          >
+                            {item.notes || "—"}
+                          </span>
                         </TableCell>
                       </TableRow>
                     );
