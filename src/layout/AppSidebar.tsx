@@ -58,14 +58,19 @@ const navItems: NavItem[] = [
     path: "/customers",
   },
   {
+    icon: <TableIcon />,
+    name: "Orders",
+    path: "/orders",
+  },
+  {
     icon: <GroupIcon />,
     name: "Customer Contacts",
     path: "/customer-contacts",
   },
   {
-    icon: <TableIcon />,
-    name: "Orders",
-    path: "/orders",
+    icon: <FilesIcon />,
+    name: "Client Requests",
+    path: "/client-requests",
   },
   {
     icon: <TableIcon />,
@@ -121,11 +126,6 @@ const navItems: NavItem[] = [
     icon: <MultiUserIcon />,
     name: "Users",
     path: "/users",
-  },
-  {
-    icon: <FilesIcon />,
-    name: "Client Requests",
-    path: "/client-requests",
   },
 ];
 
