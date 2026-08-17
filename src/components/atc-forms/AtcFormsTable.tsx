@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -7,12 +7,15 @@ import {
   TableRow,
 } from "../ui/table";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
+import FilteredResultsToolbar from "../common/FilteredResultsToolbar";
 import atcFormsService from "../../lib/atc-forms/atcFormsService";
 import { ATC_FORM_STATUSES } from "../../lib/atc-forms/types";
 import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
 import AtcFormDetailModal from "./AtcFormDetailModal";
 import type { AtcFormItem, AtcFormsParams } from "../../lib/atc-forms/types";
 import { formatDate } from "../../utils/date";
+import { fetchAllPages } from "../../utils/paginatedData";
+import { downloadRowsAsXlsx } from "../../utils/xlsxExport";
 
 const EyeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -23,6 +26,36 @@ const EyeIcon = () => (
 
 const inputCls =
   "h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30";
+
+function buildParams(
+  page: number,
+  limit: number,
+  filters: {
+    formType: string;
+    orderNumber: string;
+    customerEmail: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+  },
+): AtcFormsParams {
+  return {
+    page,
+    limit,
+    ...(filters.formType && { form_type: filters.formType }),
+    ...(filters.orderNumber && { order_number: filters.orderNumber }),
+    ...(filters.customerEmail && { customer_email: filters.customerEmail }),
+    ...(filters.status && { status: filters.status }),
+    ...(filters.startDate && { created_at_from: `${filters.startDate}T00:00:00Z` }),
+    ...(filters.endDate && { created_at_to: `${filters.endDate}T23:59:59Z` }),
+  };
+}
+
+function plainText(html: string): string {
+  if (!html) return "";
+  const documentNode = new DOMParser().parseFromString(html, "text/html");
+  return documentNode.body.textContent?.trim() ?? "";
+}
 
 export default function AtcFormsTable() {
   const [formType, setFormType] = useState("");
@@ -37,147 +70,238 @@ export default function AtcFormsTable() {
   const [items, setItems] = useState<AtcFormItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [overallTotalItems, setOverallTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<AtcFormItem | null>(null);
 
+  useEffect(() => {
+    let active = true;
+
+    atcFormsService
+      .getPaginated({ page: 1, limit: 10 })
+      .then((response) => {
+        if (active) setOverallTotalItems(response.totalItems ?? 0);
+      })
+      .catch(() => {
+        // Keep the last known overall total if the secondary count request fails.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const currentFilters = {
+    formType: formType.trim(),
+    orderNumber: orderNumber.trim(),
+    customerEmail: customerEmail.trim(),
+    status,
+    startDate,
+    endDate,
+  };
+
   const fetchRequests = useCallback(
-    async (p: number) => {
+    async (requestedPage: number) => {
       setLoading(true);
       setError(null);
+
       try {
-        const params: AtcFormsParams = {
-          page: p,
-          limit,
-          ...(formType && { form_type: formType }),
-          ...(orderNumber && { order_number: orderNumber }),
-          ...(customerEmail && { customer_email: customerEmail }),
-          ...(status && { status }),
-          ...(startDate && { created_at_from: `${startDate}T00:00:00Z` }),
-          ...(endDate && { created_at_to: `${endDate}T23:59:59Z` }),
-        };
-        const res = await atcFormsService.getPaginated(params);
-        setItems(res.items ?? []);
-        setTotalPages(res.totalPages ?? 1);
-        setTotalItems(res.totalItems ?? 0);
-        setPage(res.currentPage ?? p);
+        const response = await atcFormsService.getPaginated(
+          buildParams(requestedPage, limit, currentFilters),
+        );
+
+        setItems(response.items ?? []);
+        setTotalPages(response.totalPages ?? 1);
+        setTotalItems(response.totalItems ?? 0);
+        setPage(response.currentPage ?? requestedPage);
       } catch {
         setItems([]);
+        setTotalPages(1);
+        setTotalItems(0);
         setError("Failed to load client requests. Please try again.");
       } finally {
         setLoading(false);
       }
     },
-    [limit, formType, orderNumber, customerEmail, status, startDate, endDate]
+    [limit, formType, orderNumber, customerEmail, status, startDate, endDate],
   );
 
   useEffect(() => {
-    fetchRequests(1);
+    void fetchRequests(1);
   }, [fetchRequests]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchRequests(1);
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (startDate && endDate && startDate > endDate) {
+      setValidationError("The Start date cannot be after the End date.");
+      return;
+    }
+
+    setValidationError(null);
+    void fetchRequests(1);
+  };
+
+  const handleExport = async () => {
+    if (startDate && endDate && startDate > endDate) {
+      setValidationError("The Start date cannot be after the End date.");
+      return;
+    }
+
+    setValidationError(null);
+    setExporting(true);
+    setError(null);
+
+    try {
+      const rows = await fetchAllPages<AtcFormItem>((requestedPage, pageSize) =>
+        atcFormsService.getPaginated(
+          buildParams(requestedPage, pageSize, currentFilters),
+        ),
+      );
+
+      downloadRowsAsXlsx({
+        rows,
+        filename: `client-requests-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: "Client Requests",
+        columns: [
+          { header: "ID", value: (row) => row.id },
+          { header: "Order #", value: (row) => row.order_number },
+          { header: "Customer Name", value: (row) => row.customer_name },
+          { header: "Customer Email", value: (row) => row.customer_email },
+          { header: "Form Type", value: (row) => row.form_type },
+          { header: "Form Sub Type", value: (row) => row.form_sub_type },
+          { header: "Status", value: (row) => row.status },
+          { header: "Created", value: (row) => formatDate(row.created_at) },
+          { header: "Updated", value: (row) => row.updated_at ? formatDate(row.updated_at) : "" },
+          { header: "Updated By", value: (row) => row.updated_by },
+          { header: "Zoho Ticket ID", value: (row) => row.zoho_ticket_id },
+          { header: "Request", value: (row) => plainText(row.ticket_text) },
+        ],
+      });
+    } catch {
+      setError("Failed to export client requests. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const changeStatus = async (item: AtcFormItem, newStatus: string) => {
     const previous = item.status;
-    setItems((prev) => prev.map((r) => (r.id === item.id ? { ...r, status: newStatus } : r)));
+    setItems((current) =>
+      current.map((row) =>
+        row.id === item.id ? { ...row, status: newStatus } : row,
+      ),
+    );
+
     try {
       await atcFormsService.updateStatus(item.id, newStatus);
     } catch {
-      setItems((prev) => prev.map((r) => (r.id === item.id ? { ...r, status: previous } : r)));
+      setItems((current) =>
+        current.map((row) =>
+          row.id === item.id ? { ...row, status: previous } : row,
+        ),
+      );
     }
   };
 
+  const startIndex = totalItems === 0 ? 0 : (page - 1) * limit + 1;
+  const endIndex =
+    totalItems === 0
+      ? 0
+      : Math.min((page - 1) * limit + items.length, totalItems);
+
   return (
-    <div className="overflow-hidden bg-white dark:bg-white/[0.03] rounded-xl">
-      {/* ── Filters ── */}
+    <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
       <form
         onSubmit={handleSearch}
-        className="flex flex-col gap-3 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl sm:flex-row sm:flex-wrap sm:items-end"
+        className="flex flex-col gap-3 rounded-t-xl border border-b-0 border-gray-100 px-4 py-4 dark:border-white/[0.05] sm:flex-row sm:flex-wrap sm:items-end"
       >
         <input
           type="text"
           placeholder="Form type (e.g. claim)"
           value={formType}
-          onChange={(e) => setFormType(e.target.value)}
+          onChange={(event) => setFormType(event.target.value)}
           className={`${inputCls} w-40`}
         />
         <input
           type="text"
           placeholder="Order #"
           value={orderNumber}
-          onChange={(e) => setOrderNumber(e.target.value)}
+          onChange={(event) => setOrderNumber(event.target.value)}
           className={`${inputCls} w-32`}
         />
         <input
           type="email"
           placeholder="Customer email"
           value={customerEmail}
-          onChange={(e) => setCustomerEmail(e.target.value)}
+          onChange={(event) => setCustomerEmail(event.target.value)}
           className={`${inputCls} w-52`}
         />
 
         <div className="relative">
           <select
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(event) => setStatus(event.target.value)}
             className="h-9 appearance-none rounded-lg border border-gray-300 bg-transparent py-1 pl-3 pr-8 text-sm capitalize text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
           >
             <option value="">All statuses</option>
-            {ATC_FORM_STATUSES.map((s) => (
-              <option key={s} value={s} className="capitalize dark:bg-gray-900">{s}</option>
+            {ATC_FORM_STATUSES.map((value) => (
+              <option key={value} value={value} className="capitalize dark:bg-gray-900">
+                {value}
+              </option>
             ))}
           </select>
-          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">
-            <svg className="stroke-current" width="12" height="8" viewBox="0 0 16 16" fill="none">
-              <path d="M3.8335 5.9165L8.00016 10.0832L12.1668 5.9165" stroke="" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
         </div>
 
-        <div className="flex gap-2 items-end">
+        <div className="flex items-end gap-2">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-500 dark:text-gray-400">Start date</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={inputCls} />
+            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-gray-500 dark:text-gray-400">End date</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={inputCls} />
+            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className={inputCls} />
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500 dark:text-gray-400">Show</span>
-          <div className="relative">
-            <select
-              value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
-              className="h-9 appearance-none rounded-lg border border-gray-300 bg-transparent py-1 pl-3 pr-7 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            >
-              {[10, 25, 50, 100].map((v) => (
-                <option key={v} value={v} className="dark:bg-gray-900">{v}</option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">
-              <svg className="stroke-current" width="12" height="8" viewBox="0 0 16 16" fill="none">
-                <path d="M3.8335 5.9165L8.00016 10.0832L12.1668 5.9165" stroke="" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </div>
+          <select
+            value={limit}
+            onChange={(event) => setLimit(Number(event.target.value))}
+            className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+          >
+            {[10, 25, 50, 100].map((value) => (
+              <option key={value} value={value} className="dark:bg-gray-900">{value}</option>
+            ))}
+          </select>
         </div>
 
         <button
           type="submit"
-          className="h-9 rounded-lg bg-brand-500 px-4 text-sm font-medium text-gray-900 hover:bg-brand-600 transition-colors"
+          className="h-9 rounded-lg bg-brand-500 px-4 text-sm font-medium text-gray-900 transition-colors hover:bg-brand-600"
         >
           Search
         </button>
       </form>
 
-      {/* ── Table ── */}
+      {validationError && (
+        <div className="border-x border-gray-100 bg-warning-50 px-4 py-3 text-sm text-warning-700 dark:border-white/[0.05] dark:bg-warning-500/10 dark:text-warning-400">
+          {validationError}
+        </div>
+      )}
+
+      <FilteredResultsToolbar
+        filteredCount={totalItems}
+        totalCount={Math.max(overallTotalItems, totalItems)}
+        exporting={exporting}
+        onExport={() => void handleExport()}
+        disabled={loading}
+      />
+
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         {error && (
           <div className="m-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
@@ -187,7 +311,7 @@ export default function AtcFormsTable() {
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <svg className="animate-spin h-8 w-8 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg className="h-8 w-8 animate-spin text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
@@ -197,11 +321,7 @@ export default function AtcFormsTable() {
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
                 {["Order #", "Customer", "Type", "Created", "Status", ""].map((label) => (
-                  <TableCell
-                    key={label}
-                    isHeader
-                    className="px-4 py-3 border border-gray-100 dark:border-white/[0.05]"
-                  >
+                  <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                     <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
                   </TableCell>
                 ))}
@@ -217,38 +337,39 @@ export default function AtcFormsTable() {
               ) : (
                 items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 font-medium text-gray-800 text-theme-sm dark:border-white/[0.05] dark:text-white/90">
                       {item.order_number}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] whitespace-nowrap">
-                      <p className="text-theme-sm font-medium text-gray-800 dark:text-white/90">{item.customer_name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 lowercase">{item.customer_email}</p>
+                    <TableCell className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
+                      <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">{item.customer_name}</p>
+                      <p className="lowercase text-xs text-gray-500 dark:text-gray-400">{item.customer_email}</p>
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 capitalize whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 capitalize text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                       {item.form_type}
                       {item.form_sub_type && <span className="text-gray-400"> · {item.form_sub_type}</span>}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-gray-600 text-theme-sm dark:border-white/[0.05] dark:text-gray-400">
                       {formatDate(item.created_at)}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] whitespace-nowrap">
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                       <select
                         value={item.status ?? "pending"}
-                        onChange={(e) => changeStatus(item, e.target.value)}
+                        onChange={(event) => void changeStatus(item, event.target.value)}
                         className={`h-8 appearance-none rounded-full border-0 pl-2.5 pr-6 text-xs font-medium capitalize shadow-theme-xs focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 ${statusBadgeClass(item.status)}`}
                       >
-                        {ATC_FORM_STATUSES.map((s) => (
-                          <option key={s} value={s} className="bg-white text-gray-800 dark:bg-gray-900 dark:text-white/90">
-                            {s}
+                        {ATC_FORM_STATUSES.map((value) => (
+                          <option key={value} value={value} className="bg-white text-gray-800 dark:bg-gray-900 dark:text-white/90">
+                            {value}
                           </option>
                         ))}
                       </select>
                     </TableCell>
-                    <TableCell className="px-3 py-3 border border-gray-100 dark:border-white/[0.05] text-center">
+                    <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
                       <button
+                        type="button"
                         onClick={() => setSelectedRequest(item)}
                         title="View request detail"
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
                       >
                         <EyeIcon />
                       </button>
@@ -261,17 +382,16 @@ export default function AtcFormsTable() {
         )}
       </div>
 
-      {/* ── Footer ── */}
       {!loading && items.length > 0 && (
-        <div className="border border-t-0 rounded-b-xl border-gray-100 py-4 pl-[18px] pr-4 dark:border-white/[0.05]">
+        <div className="rounded-b-xl border border-t-0 border-gray-100 py-4 pl-[18px] pr-4 dark:border-white/[0.05]">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
-            <p className="pb-3 text-sm font-medium text-center text-gray-500 border-b border-gray-100 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
-              Showing {(page - 1) * limit + 1} to {Math.min((page - 1) * limit + items.length, totalItems)} of {totalItems} entries
+            <p className="border-b border-gray-100 pb-3 text-center text-sm font-medium text-gray-500 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
+              Showing {startIndex} to {endIndex} of {totalItems} entries
             </p>
             <PaginationWithIcon
               totalPages={totalPages}
               initialPage={page}
-              onPageChange={(p) => fetchRequests(p)}
+              onPageChange={(requestedPage) => void fetchRequests(requestedPage)}
             />
           </div>
         </div>
@@ -282,8 +402,12 @@ export default function AtcFormsTable() {
         onClose={() => setSelectedRequest(null)}
         request={selectedRequest}
         onStatusChanged={(id, newStatus) => {
-          setItems((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
-          setSelectedRequest((prev) => (prev && prev.id === id ? { ...prev, status: newStatus } : prev));
+          setItems((current) =>
+            current.map((row) => (row.id === id ? { ...row, status: newStatus } : row)),
+          );
+          setSelectedRequest((current) =>
+            current && current.id === id ? { ...current, status: newStatus } : current,
+          );
         }}
       />
     </div>
