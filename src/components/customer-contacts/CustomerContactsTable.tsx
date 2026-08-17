@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "../ui/table";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
+import FilteredResultsToolbar from "../common/FilteredResultsToolbar";
 import CustomerContactsFilters from "./CustomerContactsFilters";
 import CustomerContactRequestModal from "./CustomerContactRequestModal";
 import customerContactsService from "../../lib/customer-contacts/customerContactsService";
@@ -20,6 +21,7 @@ import type {
   SaveCustomerContactRequestPayload,
 } from "../../lib/customer-contacts/types";
 import { formatDate, formatDateTime } from "../../utils/date";
+import { downloadRowsAsXlsx } from "../../utils/xlsxExport";
 import { PencilIcon, PlusIcon } from "../../icons";
 
 const DetailIcon = ({ className = "" }: { className?: string }) => (
@@ -127,9 +129,11 @@ export default function CustomerContactsTable() {
 
   const [items, setItems] = useState<CustomerContactItem[]>([]);
   const [meta, setMeta] = useState<CustomerContactsMeta>(EMPTY_META);
+  const [overallTotalItems, setOverallTotalItems] = useState(0);
   const [reasonOptions, setReasonOptions] = useState<string[]>([]);
   const [reasonsLoading, setReasonsLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -183,6 +187,23 @@ export default function CustomerContactsTable() {
   useEffect(() => {
     fetchContacts(1);
   }, [fetchContacts]);
+
+  useEffect(() => {
+    let active = true;
+
+    customerContactsService
+      .getAll({ limit: 25, offset: 0 })
+      .then((response) => {
+        if (active) setOverallTotalItems(response.meta?.total ?? 0);
+      })
+      .catch(() => {
+        // Keep the last known overall total if this secondary count request fails.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -338,6 +359,59 @@ export default function CustomerContactsTable() {
     });
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const rows: CustomerContactItem[] = [];
+      const exportLimit = 100;
+      let offset = 0;
+      let total = 0;
+
+      do {
+        const response = await customerContactsService.getAll({
+          limit: exportLimit,
+          offset,
+          ...(appliedFilters.since && { since: appliedFilters.since }),
+          ...(appliedFilters.until && { until: appliedFilters.until }),
+          ...(appliedFilters.customer_id && { customer_id: appliedFilters.customer_id }),
+          ...(appliedFilters.order_id && { order_id: appliedFilters.order_id }),
+          ...(appliedFilters.reason_id && { reason_id: appliedFilters.reason_id }),
+        });
+
+        const pageRows = Array.isArray(response.items) ? response.items : [];
+        rows.push(...pageRows);
+        total = response.meta?.total ?? rows.length;
+
+        if (pageRows.length === 0) break;
+        offset += pageRows.length;
+      } while (offset < total);
+
+      downloadRowsAsXlsx({
+        rows,
+        filename: `customer-contacts-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: "Customer Contacts",
+        columns: [
+          { header: "Order #", value: (row) => row.order_number ?? row.order_id },
+          { header: "Customer ID", value: (row) => row.customer_id },
+          { header: "Customer", value: (row) => row.customer_name },
+          { header: "Phone", value: (row) => row.phone },
+          { header: "Email", value: (row) => row.email },
+          { header: "Order Date", value: (row) => formatDate(row.order_date) },
+          { header: "Reason", value: (row) => row.onhold_reason ?? row.reason },
+          { header: "Last Contacted", value: (row) => formatDateTime(row.last_contacted) },
+          { header: "Contacts", value: (row) => row.contact_count },
+          { header: "Notes", value: (row) => row.notes },
+        ],
+      });
+    } catch {
+      setError("Failed to export customer contacts. Please try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(meta.total / limit));
   const startIndex = meta.total === 0 ? 0 : meta.offset + 1;
   const endIndex = Math.min(meta.offset + items.length, meta.total);
@@ -354,6 +428,14 @@ export default function CustomerContactsTable() {
           onLimitChange={setLimit}
           onSearch={handleSearch}
           onClear={handleClear}
+        />
+
+        <FilteredResultsToolbar
+          filteredCount={meta.total}
+          totalCount={Math.max(overallTotalItems, meta.total)}
+          exporting={exporting}
+          onExport={() => void handleExport()}
+          disabled={loading}
         />
 
         {validationError && (
