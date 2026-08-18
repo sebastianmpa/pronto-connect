@@ -8,7 +8,10 @@ import {
   TableRow,
 } from "../ui/table";
 import partsService from "../../lib/parts/partsService";
-import type { PartDetailResponse } from "../../lib/parts/types";
+import type {
+  PartDynamicRow,
+  PartLookupItem,
+} from "../../lib/parts/types";
 
 const inputClass =
   "h-10 w-full rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30";
@@ -31,74 +34,53 @@ function displayValue(value: unknown): string {
   return String(value);
 }
 
-function getDescription(part: PartDetailResponse): string {
-  return part.product?.DESCRIPTION || "—";
-}
+function toNumber(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
 
-const SUPPLIER_QUANTITY_KEYS = [
-  "provider_quantity",
-  "providerQuantity",
-  "PROVIDERQUANTITY",
-  "PROVIDER_QUANTITY",
-  "ProviderQuantity",
-  "Provider Quantity",
-  "quantity",
-  "qty",
-  "QTY",
-  "onhand",
-  "on_hand",
-  "stock",
-];
-
-function toNumericValue(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-
-  const numericValue =
-    typeof value === "number"
-      ? value
-      : Number(String(value).replace(/,/g, "").trim());
-
-  return Number.isFinite(numericValue) ? numericValue : null;
-}
-
-function getSupplierRowQuantity(row: Record<string, unknown>): number {
-  for (const key of SUPPLIER_QUANTITY_KEYS) {
-    const numericValue = toNumericValue(row[key]);
-    if (numericValue !== null) return numericValue;
+  if (typeof value === "string") {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  const fallbackKey = Object.keys(row).find((key) => {
-    const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
-    return [
-      "providerquantity",
-      "quantity",
-      "qty",
-      "supplierstock",
-      "stock",
-      "onhand",
-    ].includes(normalizedKey);
-  });
-
-  if (!fallbackKey) return 0;
-
-  return toNumericValue(row[fallbackKey]) ?? 0;
+  return 0;
 }
 
-function getSupplierStock(part: PartDetailResponse): number {
-  const rows = Array.isArray(part.supplier_stock) ? part.supplier_stock : [];
+function getProviderQuantity(row: PartDynamicRow): number {
+  const candidates = [
+    "provider_qty",
+    "provider_quantity",
+    "providerQuantity",
+    "Provider Quantity",
+    "qty",
+    "quantity",
+  ];
 
-  if (rows.length === 0) return 0;
+  for (const key of candidates) {
+    if (Object.prototype.hasOwnProperty.call(row, key)) {
+      return toNumber(row[key]);
+    }
+  }
 
-  return rows.reduce((total, row) => total + getSupplierRowQuantity(row), 0);
+  return 0;
+}
+
+function getSupplierStockTotal(part: PartLookupItem): number {
+  return (part.supplier_stock ?? []).reduce(
+    (total, row) => total + getProviderQuantity(row),
+    0,
+  );
+}
+
+function getDescription(part: PartLookupItem): string {
+  return part.description || part.product?.DESCRIPTION || "—";
 }
 
 export default function PartsTable() {
   const navigate = useNavigate();
 
-  const [mfr, setMfr] = useState("");
-  const [partNumber, setPartNumber] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [result, setResult] = useState<PartDetailResponse | null>(null);
+  const [sku, setSku] = useState("");
+  const [results, setResults] = useState<PartLookupItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
@@ -106,12 +88,10 @@ export default function PartsTable() {
   const handleSearch = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    const cleanMfr = mfr.trim();
-    const cleanPartNumber = partNumber.trim();
-    const cleanLocationId = locationId.trim();
+    const cleanSku = sku.trim();
 
-    if (!cleanMfr || !cleanPartNumber || !cleanLocationId) {
-      setError("MFR, Part Number and Location ID are required by the current detail endpoint.");
+    if (!cleanSku) {
+      setError("SKU is required.");
       return;
     }
 
@@ -120,16 +100,21 @@ export default function PartsTable() {
     setSearched(true);
 
     try {
-      const data = await partsService.getDetail({
-        mfr: cleanMfr,
-        partNumber: cleanPartNumber,
-        locationId: cleanLocationId,
+      const response = await partsService.searchBySku({
+        partNumber: cleanSku,
       });
-      setResult(data);
+
+      setResults(response.items);
+      setTotal(response.meta.total);
+
+      if (response.items.length === 0) {
+        setError("No parts were found for this SKU.");
+      }
     } catch {
-      setResult(null);
+      setResults([]);
+      setTotal(0);
       setError(
-        "Part detail could not be loaded. Please verify MFR, Part Number, Location ID and the Ideal API configuration.",
+        "Parts could not be loaded. Please verify the SKU and the Ideal API configuration.",
       );
     } finally {
       setLoading(false);
@@ -137,22 +122,32 @@ export default function PartsTable() {
   };
 
   const handleClear = () => {
-    setMfr("");
-    setPartNumber("");
-    setLocationId("");
-    setResult(null);
+    setSku("");
+    setResults([]);
+    setTotal(0);
     setError(null);
     setSearched(false);
   };
 
-  const openDetail = (part: PartDetailResponse) => {
-    const selectedLocation = String(
-      part.stock_location?.locationid ?? locationId.trim(),
-    );
-    const query = new URLSearchParams({ locationid: selectedLocation }).toString();
+  const openDetail = (part: PartLookupItem) => {
+    const locationId = part.stock?.location_id;
+
+    if (
+      locationId === null ||
+      locationId === undefined ||
+      locationId === ""
+    ) {
+      return;
+    }
+
+    const query = new URLSearchParams({
+      locationid: String(locationId),
+    }).toString();
 
     navigate(
-      `/parts/${encodeURIComponent(part.mfr)}/${encodeURIComponent(part.partnumber)}?${query}`,
+      `/parts/${encodeURIComponent(part.mfr)}/${encodeURIComponent(
+        part.partnumber,
+      )}?${query}`,
       { state: { from: "/parts" } },
     );
   };
@@ -161,45 +156,18 @@ export default function PartsTable() {
     <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
       <form
         onSubmit={handleSearch}
-        className="grid grid-cols-1 gap-4 rounded-t-xl border border-b-0 border-gray-100 px-4 py-4 md:grid-cols-2 xl:grid-cols-[minmax(150px,0.55fr)_minmax(220px,0.9fr)_minmax(150px,0.55fr)_auto] xl:items-end dark:border-white/[0.05]"
+        className="flex flex-col gap-4 rounded-t-xl border border-b-0 border-gray-100 px-4 py-4 md:flex-row md:items-end dark:border-white/[0.05]"
       >
-        <div>
+        <div className="w-full md:max-w-xl">
           <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            MFR
+            SKU
           </label>
-          <input
-            type="text"
-            value={mfr}
-            onChange={(event) => setMfr(event.target.value)}
-            placeholder="HST"
-            className={inputClass}
-          />
-        </div>
 
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            Part Number
-          </label>
           <input
             type="text"
-            value={partNumber}
-            onChange={(event) => setPartNumber(event.target.value)}
+            value={sku}
+            onChange={(event) => setSku(event.target.value)}
             placeholder="795633"
-            className={inputClass}
-          />
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            Location ID
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            value={locationId}
-            onChange={(event) => setLocationId(event.target.value)}
-            placeholder="1"
             className={inputClass}
           />
         </div>
@@ -212,6 +180,7 @@ export default function PartsTable() {
           >
             {loading ? "Searching..." : "Search"}
           </button>
+
           <button
             type="button"
             onClick={handleClear}
@@ -226,10 +195,11 @@ export default function PartsTable() {
       <div className="border-x border-gray-100 px-4 py-3 dark:border-white/[0.05]">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Search result
+            Search results{searched ? ` (${total})` : ""}
           </p>
+
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            The current endpoint is an exact detail lookup. A SKU-only search needs a separate search/list endpoint because one part number can exist under multiple MFRs and locations.
+            Search by SKU and select the matching MFR/location to open Part Detail.
           </p>
         </div>
       </div>
@@ -270,71 +240,109 @@ export default function PartsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["MFR", "Part Number", "Description", "Location", "Cost", "Supplier Stock", "On Hand", "Available", ""].map(
-                  (label) => (
-                    <TableCell
-                      key={label || "actions"}
-                      isHeader
-                      className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]"
-                    >
-                      <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">
-                        {label}
-                      </p>
-                    </TableCell>
-                  ),
-                )}
+                {[
+                  "MFR",
+                  "Part Number",
+                  "Description",
+                  "Location",
+                  "Cost",
+                  "Supplier Stock",
+                  "On Hand",
+                  "Available",
+                  "",
+                ].map((label) => (
+                  <TableCell
+                    key={label || "actions"}
+                    isHeader
+                    className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]"
+                  >
+                    <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">
+                      {label}
+                    </p>
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {!result ? (
+              {results.length === 0 ? (
                 <TableRow>
                   <td
                     colSpan={9}
                     className="border border-gray-100 px-4 py-10 text-center text-sm text-gray-500 dark:border-white/[0.05] dark:text-gray-400"
                   >
                     {searched
-                      ? "No part detail available for the selected filters."
-                      : "Enter MFR, Part Number and Location ID to search."}
+                      ? "No parts available for this SKU."
+                      : "Enter a SKU to search."}
                   </td>
                 </TableRow>
               ) : (
-                <TableRow>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
-                    {result.mfr}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
-                    {result.partnumber}
-                  </TableCell>
-                  <TableCell className="min-w-[260px] border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    <span className="block break-words">{getDescription(result)}</span>
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    {displayValue(result.stock_location?.locationid)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    {displayValue(result.product?.LISTPRICE)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    {getSupplierStock(result)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    {displayValue(result.stock_location?.onhand)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                    {displayValue(result.stock_location?.onhand_available)}
-                  </TableCell>
-                  <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
-                    <button
-                      type="button"
-                      onClick={() => openDetail(result)}
-                      title="View part detail"
-                      aria-label={`View part ${result.partnumber}`}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
+                results.map((part, index) => {
+                  const locationId = part.stock?.location_id;
+                  const canOpenDetail =
+                    locationId !== null &&
+                    locationId !== undefined &&
+                    locationId !== "";
+
+                  return (
+                    <TableRow
+                      key={`${part.mfr}-${part.partnumber}-${String(
+                        locationId,
+                      )}-${index}`}
                     >
-                      <EyeIcon />
-                    </button>
-                  </TableCell>
-                </TableRow>
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
+                        {part.mfr}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
+                        {part.partnumber}
+                      </TableCell>
+
+                      <TableCell className="min-w-[260px] border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        <span className="block break-words">
+                          {getDescription(part)}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        {displayValue(locationId)}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        {displayValue(part.product?.LISTPRICE)}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        {getSupplierStockTotal(part)}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        {displayValue(part.stock?.onhand)}
+                      </TableCell>
+
+                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
+                        {displayValue(part.stock?.onhand_available)}
+                      </TableCell>
+
+                      <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
+                        <button
+                          type="button"
+                          onClick={() => openDetail(part)}
+                          disabled={!canOpenDetail}
+                          title={
+                            canOpenDetail
+                              ? "View part detail"
+                              : "Location ID is required to open detail"
+                          }
+                          aria-label={`View part ${part.partnumber}`}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-brand-500/10"
+                        >
+                          <EyeIcon />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
