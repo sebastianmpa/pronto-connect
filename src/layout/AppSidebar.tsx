@@ -17,8 +17,6 @@ import {
   // LayoutIcon,
   ListIcon,
   KeyIcon,
-  MailIcon,
-  EmailAltIcon,
   CloseLineIcon,
   CheckCircleIcon,
   // MapIcon,
@@ -65,42 +63,23 @@ const navItems: NavItem[] = [
   {
     icon: <BoxCubeIcon />,
     name: "Parts",
-    path: "/parts",
+    subItems: [
+      { name: "Parts Lookup", path: "/parts" },
+      { name: "Manuals", path: "/manuals" },
+      { name: "Diagrams", path: "/parts/diagrams" },
+      { name: "Parts Compatibility Chat", path: "/parts/compatibility-chat" },
+    ],
   },
   {
     icon: <GroupIcon />,
     name: "Customer Contacts",
-    path: "/customer-contacts",
-  },
-  {
-    icon: <FilesIcon />,
-    name: "Client Requests",
-    path: "/client-requests",
-  },
-  {
-    icon: <TableIcon />,
-    name: "SMS Logs",
-    path: "/sms-logs",
-  },
-  {
-    icon: <MailIcon />,
-    name: "SMS Templates",
-    path: "/sms-templates",
-  },
-  {
-    icon: <EmailAltIcon />,
-    name: "Email Templates",
-    path: "/email-templates",
-  },
-  {
-    icon: <TableIcon />,
-    name: "Email Logs",
-    path: "/email-logs",
-  },
-  {
-    icon: <CallIcon />,
-    name: "Tickets",
-    path: "/tickets",
+    subItems: [
+      { name: "Customer Contacts", path: "/customer-contacts" },
+      { name: "SMS Logs", path: "/sms-logs" },
+      { name: "SMS Templates", path: "/sms-templates" },
+      { name: "Email Logs", path: "/email-logs" },
+      { name: "Email Templates", path: "/email-templates" },
+    ],
   },
   {
     icon: <CloseLineIcon />,
@@ -108,29 +87,14 @@ const navItems: NavItem[] = [
     path: "/cancellations",
   },
   {
-    icon: <CheckCircleIcon />,
-    name: "Closure Methods",
-    path: "/closure-methods",
+    icon: <FilesIcon />,
+    name: "Client Requests",
+    path: "/client-requests",
   },
   {
-    icon: <ListIcon />,
-    name: "Contact Reasons",
-    path: "/contact-reasons",
-  },
-  {
-    icon: <KeyIcon />,
-    name: "Permissions",
-    path: "/permissions",
-  },
-  {
-    icon: <UserCircleIcon />,
-    name: "Roles",
-    path: "/roles",
-  },
-  {
-    icon: <MultiUserIcon />,
-    name: "Users",
-    path: "/users",
+    icon: <CallIcon />,
+    name: "Zoho Tickets",
+    path: "/tickets",
   },
 ];
 
@@ -247,7 +211,33 @@ const _disabledNavItems: NavItem[] = [
 ];
 ── */
 
-const othersItems: NavItem[] = [];
+const othersItems: NavItem[] = [
+  {
+    icon: <CheckCircleIcon />,
+    name: "Closure Methods",
+    path: "/closure-methods",
+  },
+  {
+    icon: <ListIcon />,
+    name: "Contact Reasons",
+    path: "/contact-reasons",
+  },
+  {
+    icon: <KeyIcon />,
+    name: "Permissions",
+    path: "/permissions",
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Roles",
+    path: "/roles",
+  },
+  {
+    icon: <MultiUserIcon />,
+    name: "Users",
+    path: "/users",
+  },
+];
 
 /* ── Disabled others items ────────────────────────────────────────────────────
 const _disabledOthersItems: NavItem[] = [
@@ -634,6 +624,22 @@ const AppSidebar: React.FC = () => {
                 )}
               </h2>
               {renderMenuItems(navItems, "main")}
+            </div>
+            <div>
+              <h2
+                className={`mb-4 flex text-xs leading-[20px] text-gray-400 uppercase ${
+                  !isExpanded && !isHovered
+                    ? "xl:justify-center"
+                    : "justify-start"
+                }`}
+              >
+                {isExpanded || isHovered || isMobileOpen ? (
+                  "Admin"
+                ) : (
+                  <HorizontaLDots className="size-6" />
+                )}
+              </h2>
+              {renderMenuItems(othersItems, "others")}
             </div>
           </div>
         </nav>

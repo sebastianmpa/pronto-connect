@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import type {
   PartDetailResponse,
   PartDynamicRow,
 } from "../../lib/parts/types";
+import productPartsService from "../../lib/product-parts/productPartsService";
+import type { WhereUsedItem } from "../../lib/product-parts/types";
 
 interface PartDetailViewProps {
   part: PartDetailResponse;
@@ -107,6 +110,37 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
   const supplierStock = part.supplier_stock ?? [];
   const purchaseOrders = part.purchase_orders ?? [];
   const description = product?.DESCRIPTION || "No description provided.";
+
+  const [whereUsed, setWhereUsed] = useState<WhereUsedItem[]>([]);
+  const [whereUsedLoading, setWhereUsedLoading] = useState(false);
+  const [whereUsedError, setWhereUsedError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!part.partnumber || !part.mfr) return;
+
+    let cancelled = false;
+    setWhereUsedLoading(true);
+    setWhereUsedError(null);
+
+    productPartsService
+      .getWhereUsed(part.partnumber, part.mfr)
+      .then((items) => {
+        if (!cancelled) setWhereUsed(items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWhereUsed([]);
+          setWhereUsedError("Could not load where-used data for this part.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setWhereUsedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [part.mfr, part.partnumber]);
 
   const productInfo = [
     ["Category", product?.CATEGORY],
@@ -276,6 +310,84 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
           rows={purchaseOrders}
           emptyMessage="No purchase orders returned for this part."
         />
+      </div>
+
+      <div>
+        <SectionHeader
+          title={`Where Used (${whereUsed.length})`}
+          subtitle="Models and serial ranges where this part is used, with a link to the matching manual."
+        />
+
+        {whereUsedLoading && (
+          <div className="flex items-center justify-center rounded-xl border border-gray-100 py-10 dark:border-white/[0.05]">
+            <svg
+              className="h-6 w-6 animate-spin text-brand-500"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+          </div>
+        )}
+
+        {!whereUsedLoading && whereUsedError && (
+          <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
+            {whereUsedError}
+          </div>
+        )}
+
+        {!whereUsedLoading && !whereUsedError && whereUsed.length === 0 && (
+          <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
+            No where-used records found for this part.
+          </div>
+        )}
+
+        {!whereUsedLoading && !whereUsedError && whereUsed.length > 0 && (
+          <div className="overflow-x-auto rounded-xl border border-gray-100 custom-scrollbar dark:border-white/[0.05]">
+            <table className="w-full min-w-[700px] text-sm">
+              <thead className="bg-gray-50 dark:bg-white/[0.03]">
+                <tr>
+                  {["Model", "Serial Range", "Part Type", "Manual"].map((label) => (
+                    <th key={label} className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                {whereUsed.map((item, index) => (
+                  <tr key={`${item.model}-${item.serial}-${index}`} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                    <td className="px-4 py-3 font-medium whitespace-nowrap text-gray-800 dark:text-white/90">
+                      {displayValue(item.model)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
+                      {displayValue(item.serial)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
+                      {displayValue(item.part_type)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.manual ? (
+                        <a
+                          href={item.manual}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-brand-600 hover:underline dark:text-brand-400"
+                        >
+                          View manual
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
