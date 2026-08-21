@@ -25,6 +25,9 @@ import UsersList from "./pages/Users/UsersList";
 import ClientRequestsList from "./pages/ClientRequests/ClientRequestsList";
 import PartsList from "./pages/Parts/PartsList";
 import PartDetail from "./pages/Parts/PartDetail";
+import PartsDiagrams from "./pages/Parts/PartsDiagrams";
+import PartsCompatibilityChat from "./pages/Parts/PartsCompatibilityChat";
+import ManualsList from "./pages/Manuals/ManualsList";
 import Stocks from "./pages/Dashboard/Stocks";
 import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
@@ -133,6 +136,9 @@ export default function App() {
             <Route path="/orders/:orderNumber" element={<OrderDetail />} />
             <Route path="/parts" element={<PartsList />} />
             <Route path="/parts/:mfr/:partNumber" element={<PartDetail />} />
+            <Route path="/parts/diagrams" element={<PartsDiagrams />} />
+            <Route path="/parts/compatibility-chat" element={<PartsCompatibilityChat />} />
+            <Route path="/manuals" element={<ManualsList />} />
             <Route path="/sms-logs" element={<SmsLogsList />} />
             <Route path="/sms-logs/:id" element={<SmsLogDetail />} />
             <Route path="/customers" element={<CustomersList />} />

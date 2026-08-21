@@ -5,6 +5,7 @@ import { useAuthStore } from "../store/authStore";
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 const IDEAL_API_URL = import.meta.env.VITE_IDEAL_API_URL as string;
 const IDEAL_API_KEY = import.meta.env.VITE_IDEAL_API_KEY as string;
+const RAG_CHAT_API_URL = import.meta.env.VITE_RAG_CHAT_API_URL as string;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -44,6 +45,15 @@ export const idealApiClient = axios.create({
     Accept: "application/json",
     "Content-Type": "application/json",
     "x-api-key": IDEAL_API_KEY,
+  },
+});
+
+// Separate client for the Parts Compatibility Chat (RAG) service.
+// External service, own base URL, no ATC JWT auth.
+export const ragChatApiClient = axios.create({
+  baseURL: RAG_CHAT_API_URL,
+  headers: {
+    "Content-Type": "application/json",
   },
 });
 
