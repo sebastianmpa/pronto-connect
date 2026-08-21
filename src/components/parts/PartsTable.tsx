@@ -248,7 +248,6 @@ export default function PartsTable() {
                   "Cost",
                   "Supplier Stock",
                   "On Hand",
-                  "Available",
                   "",
                 ].map((label) => (
                   <TableCell
@@ -268,7 +267,7 @@ export default function PartsTable() {
               {results.length === 0 ? (
                 <TableRow>
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="border border-gray-100 px-4 py-10 text-center text-sm text-gray-500 dark:border-white/[0.05] dark:text-gray-400"
                   >
                     {searched
@@ -318,10 +317,6 @@ export default function PartsTable() {
 
                       <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                         {displayValue(part.stock?.onhand)}
-                      </TableCell>
-
-                      <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                        {displayValue(part.stock?.onhand_available)}
                       </TableCell>
 
                       <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
