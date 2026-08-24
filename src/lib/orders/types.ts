@@ -47,6 +47,12 @@ export interface OrderDetailItem {
   total_price: string;
   raw?: {
     brand?: string;
+    package?: string | number | null;
+    package_info?: string | number | null;
+    package_label?: string | number | null;
+    pack?: string | number | null;
+    pack_qty?: string | number | null;
+    package_quantity?: string | number | null;
     [key: string]: unknown;
   };
 }
@@ -92,6 +98,7 @@ export interface OrderHeader {
   total_inc_tax: string;
   subtotal_inc_tax: string;
   shipping_cost_inc_tax: string;
+  total_tax?: string;
   items_total: number;
   items_shipped: number;
   payment_method: string;
@@ -185,8 +192,27 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
+
+export interface OrderStore {
+  description: string;
+  url: string;
+  logo_color: string | null;
+  logo_white: string | null;
+
+  // Optional contact fields. The current endpoint only guarantees the four
+  // fields above; the invoice uses these automatically if they are added later.
+  address_line_1?: string | null;
+  address_line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  email?: string | null;
+}
+
 export interface OrderDetail {
   order_number: string;
+  store?: OrderStore | null;
   source: string;
   status_text: string;
   business_status: { name: string } | null;
