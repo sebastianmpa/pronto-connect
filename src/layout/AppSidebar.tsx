@@ -65,7 +65,6 @@ const navItems: NavItem[] = [
     name: "Parts",
     subItems: [
       { name: "Parts Lookup", path: "/parts" },
-      { name: "Manuals", path: "/manuals" },
       { name: "Diagrams", path: "/parts/diagrams" },
       { name: "Parts Compatibility Chat", path: "/parts/compatibility-chat" },
     ],

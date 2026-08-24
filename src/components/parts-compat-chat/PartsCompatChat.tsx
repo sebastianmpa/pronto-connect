@@ -229,6 +229,23 @@ export default function PartsCompatChat() {
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState(640);
+
+  // Stretch the panel all the way to the bottom of the viewport, shrinking/growing
+  // with it, instead of using a fixed height that leaves dead space or gets cramped.
+  useEffect(() => {
+    function updateHeight() {
+      if (!panelRef.current) return;
+      const top = panelRef.current.getBoundingClientRect().top;
+      const next = Math.max(480, window.innerHeight - top - 24);
+      setPanelHeight(next);
+    }
+
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
 
   const welcomeMessage = (): ChatMessage => ({
     id: crypto.randomUUID(),
@@ -410,7 +427,11 @@ export default function PartsCompatChat() {
   }
 
   return (
-    <div className="flex h-[640px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]">
+    <div
+      ref={panelRef}
+      style={{ height: panelHeight }}
+      className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-white/[0.03]"
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-brand-50/80 via-white to-white px-5 py-4 dark:border-gray-800 dark:from-brand-500/10 dark:via-transparent dark:to-transparent">
         <div className="flex items-center gap-3">
