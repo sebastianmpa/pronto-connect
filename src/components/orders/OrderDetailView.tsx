@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useModal } from "../../hooks/useModal";
 import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
+import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 
@@ -23,6 +24,55 @@ function fmtStatusDate(raw?: string | null): string | null {
   return raw ? formatDate(raw) : null;
 }
 
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+
+  return "";
+}
+
+function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
+  const raw = item.raw ?? {};
+
+  const brand = firstText(
+    item.brand,
+    raw.brand,
+    raw.BRAND,
+    raw.mfr,
+    raw.MFRID,
+  );
+
+  let mpn = firstText(
+    item.mpn,
+    raw.mpn,
+    raw.MPN,
+    raw.partnumber,
+    raw.PARTNUMBER,
+    raw.manufacturer_part_number,
+  );
+
+  // Some order responses do not expose MPN separately even though the SKU is
+  // the manufacturer part number. Keep the existing part-detail action usable
+  // in that response shape without changing the order API.
+  if (!mpn) {
+    const sku = String(item.sku ?? "").trim();
+
+    if (sku) {
+      const upperBrand = brand.toUpperCase();
+      const upperSku = sku.toUpperCase();
+
+      mpn =
+        brand && upperSku.startsWith(`${upperBrand} `)
+          ? sku.slice(brand.length).trim()
+          : sku;
+    }
+  }
+
+  return { brand, mpn };
+}
+
 const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
 
 export default function OrderDetailView({
@@ -33,6 +83,7 @@ export default function OrderDetailView({
   onCancelled?: () => void;
 }) {
   const cancelModal = useModal();
+  const customerInfoModal = useModal();
   const navigate = useNavigate();
   const location = useLocation();
   const isAlreadyCancelled = /cancel/i.test(order.status_text ?? "") || /cancel/i.test(order.business_status?.name ?? "");
@@ -45,8 +96,7 @@ export default function OrderDetailView({
     null;
 
   const openPartDetail = (item: OrderDetailType["items"][number]) => {
-    const brand = String(item.brand ?? "").trim();
-    const mpn = String(item.mpn ?? "").trim();
+    const { brand, mpn } = resolvePartDetailInfo(item);
 
     if (!brand || !mpn || storeId === null || storeId === undefined || String(storeId).trim() === "") {
       return;
@@ -77,14 +127,24 @@ export default function OrderDetailView({
           <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
             {order.status_text}
           </span>
-          {!isAlreadyCancelled && (
+          <div className="flex flex-wrap justify-end gap-2">
             <button
-              onClick={cancelModal.openModal}
-              className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+              type="button"
+              onClick={customerInfoModal.openModal}
+              className="rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
             >
-              Cancel Order
+              Change customer&apos;s Info
             </button>
-          )}
+            {!isAlreadyCancelled && (
+              <button
+                type="button"
+                onClick={cancelModal.openModal}
+                className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+              >
+                Cancel Order
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -93,6 +153,13 @@ export default function OrderDetailView({
         onClose={cancelModal.closeModal}
         order={order}
         onCancelled={onCancelled}
+      />
+
+      <ChangeCustomerInfoModal
+        isOpen={customerInfoModal.isOpen}
+        onClose={customerInfoModal.closeModal}
+        order={order}
+        onUpdated={onCancelled}
       />
 
       {/* Progress stepper */}
@@ -291,33 +358,43 @@ export default function OrderDetailView({
                           </span>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          {item.brand && item.mpn && storeId !== null && storeId !== undefined && String(storeId).trim() !== "" ? (
-                            <button
-                              type="button"
-                              onClick={() => openPartDetail(item)}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-white/[0.10] dark:text-gray-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                              title={`View part detail: ${item.brand} ${item.mpn}`}
-                              aria-label={`View part detail for ${item.brand} ${item.mpn}`}
-                            >
-                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6S2.25 12 2.25 12Z"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                                <circle cx="12" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.6" />
-                              </svg>
-                            </button>
-                          ) : (
-                            <span
-                              className="inline-flex h-8 w-8 items-center justify-center text-gray-300 dark:text-gray-700"
-                              title="Brand, MPN or Store ID is not available for this item"
-                            >
-                              -
-                            </span>
-                          )}
+                          {(() => {
+                            const { brand, mpn } = resolvePartDetailInfo(item);
+                            const canOpenPartDetail =
+                              Boolean(brand) &&
+                              Boolean(mpn) &&
+                              storeId !== null &&
+                              storeId !== undefined &&
+                              String(storeId).trim() !== "";
+
+                            return canOpenPartDetail ? (
+                              <button
+                                type="button"
+                                onClick={() => openPartDetail(item)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-white/[0.10] dark:text-gray-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                                title={`View part detail: ${brand} ${mpn}`}
+                                aria-label={`View part detail for ${brand} ${mpn}`}
+                              >
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path
+                                    d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6S2.25 12 2.25 12Z"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                  <circle cx="12" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.6" />
+                                </svg>
+                              </button>
+                            ) : (
+                              <span
+                                className="inline-flex h-8 w-8 items-center justify-center text-gray-300 dark:text-gray-700"
+                                title="Brand, MPN or Store ID is not available for this item"
+                              >
+                                -
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}
