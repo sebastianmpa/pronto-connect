@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
 import type {
   PartDetailResponse,
   PartDynamicRow,
 } from "../../lib/parts/types";
-import productPartsService from "../../lib/product-parts/productPartsService";
-import type { WhereUsedItem } from "../../lib/product-parts/types";
 
 interface PartDetailViewProps {
   part: PartDetailResponse;
@@ -22,17 +19,6 @@ function humanizeKey(key: string): string {
     .replace(/_/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function SummaryCard({ label, value }: { label: string; value: unknown }) {
-  return (
-    <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-4 text-center dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-gray-800 dark:text-white/90">
-        {displayValue(value)}
-      </p>
-    </div>
-  );
 }
 
 function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -111,48 +97,6 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
   const purchaseOrders = part.purchase_orders ?? [];
   const description = product?.DESCRIPTION || "No description provided.";
 
-  const [whereUsed, setWhereUsed] = useState<WhereUsedItem[]>([]);
-  const [whereUsedLoading, setWhereUsedLoading] = useState(false);
-  const [whereUsedError, setWhereUsedError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!part.partnumber || !part.mfr) return;
-
-    let cancelled = false;
-    setWhereUsedLoading(true);
-    setWhereUsedError(null);
-
-    productPartsService
-      .getWhereUsed(part.partnumber, part.mfr)
-      .then((items) => {
-        if (!cancelled) setWhereUsed(items);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setWhereUsed([]);
-          setWhereUsedError("Could not load where-used data for this part.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setWhereUsedLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [part.mfr, part.partnumber]);
-
-  const productInfo = [
-    ["Category", product?.CATEGORY],
-    ["Status", product?.STATUS],
-    ["UPC", product?.UPC?.trim()],
-    ["Current Cost", product?.CURRENTCOST],
-    ["List Price", product?.LISTPRICE],
-    ["Standard Cost", product?.STANDARDCOST],
-    ["Average Cost", product?.AVERAGECOST],
-    ["Preferred Supplier ID", product?.PREFERREDSUPPLIERID],
-    ["Last Change", product?.LASTCHANGEDATE],
-  ];
 
   return (
     <div className="space-y-6">
@@ -179,52 +123,13 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-100 p-5 dark:border-white/[0.05]">
-        <SectionHeader
-          title="Product in Stock"
-          subtitle="Values returned by stock_location for the selected MFR, part number and location."
-        />
-
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-          <SummaryCard label="On Hand" value={stock?.onhand} />
-          <SummaryCard label="Available" value={stock?.onhand_available} />
-          <SummaryCard label="Allocated" value={stock?.allocated} />
-          <SummaryCard label="On Order" value={stock?.onorder_qty} />
-          <SummaryCard label="Backorder" value={stock?.backorder_qty} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
-          <SummaryCard label="Cost" value={stock?.cost} />
-          <SummaryCard label="Min" value={stock?.min} />
-          <SummaryCard label="Max" value={stock?.max} />
-          <SummaryCard label="SumMin" value={stock?.summin} />
-          <SummaryCard label="SumMax" value={stock?.summax} />
-          <SummaryCard label="Bin" value={stock?.binlocation} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
-            <p className="text-xs text-gray-400">ETA</p>
-            <p className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-              {displayValue(part.eta)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
-            <p className="text-xs text-gray-400">Treatment</p>
-            <p className="mt-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-              {displayValue(part.treatment)}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <div>
         <SectionHeader title="Stock by Location" />
         <div className="overflow-x-auto rounded-xl border border-gray-100 custom-scrollbar dark:border-white/[0.05]">
-          <table className="w-full min-w-[900px] text-sm">
+          <table className="w-full min-w-[800px] text-sm">
             <thead className="bg-gray-50 dark:bg-white/[0.03]">
               <tr>
-                {["Location", "On Hand", "Available", "Allocated", "On Order", "Backorder", "Cost", "Bin"].map((label) => (
+                {["Location", "On Hand", "Allocated", "On Order", "Backorder", "Cost", "Bin"].map((label) => (
                   <th key={label} className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">
                     {label}
                   </th>
@@ -235,7 +140,6 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
               <tr>
                 <td className="px-4 py-3 font-medium text-gray-800 dark:text-white/90">{displayValue(stock?.locationid)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{displayValue(stock?.onhand)}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{displayValue(stock?.onhand_available)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{displayValue(stock?.allocated)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{displayValue(stock?.onorder_qty)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{displayValue(stock?.backorder_qty)}</td>
@@ -277,20 +181,6 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
       </div>
 
       <div>
-        <SectionHeader title="Product Information" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {productInfo.map(([label, value]) => (
-            <div key={String(label)} className="rounded-xl border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
-              <p className="text-xs text-gray-400">{label}</p>
-              <p className="mt-1 break-words text-sm font-medium text-gray-700 dark:text-gray-300">
-                {displayValue(value)}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
         <SectionHeader
           title={`Supplier Stock (${supplierStock.length})`}
           subtitle="If the API returns supplier_stock rows, every returned field is displayed."
@@ -310,84 +200,6 @@ export default function PartDetailView({ part, locationId }: PartDetailViewProps
           rows={purchaseOrders}
           emptyMessage="No purchase orders returned for this part."
         />
-      </div>
-
-      <div>
-        <SectionHeader
-          title={`Where Used (${whereUsed.length})`}
-          subtitle="Models and serial ranges where this part is used, with a link to the matching manual."
-        />
-
-        {whereUsedLoading && (
-          <div className="flex items-center justify-center rounded-xl border border-gray-100 py-10 dark:border-white/[0.05]">
-            <svg
-              className="h-6 w-6 animate-spin text-brand-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-          </div>
-        )}
-
-        {!whereUsedLoading && whereUsedError && (
-          <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
-            {whereUsedError}
-          </div>
-        )}
-
-        {!whereUsedLoading && !whereUsedError && whereUsed.length === 0 && (
-          <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
-            No where-used records found for this part.
-          </div>
-        )}
-
-        {!whereUsedLoading && !whereUsedError && whereUsed.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-gray-100 custom-scrollbar dark:border-white/[0.05]">
-            <table className="w-full min-w-[700px] text-sm">
-              <thead className="bg-gray-50 dark:bg-white/[0.03]">
-                <tr>
-                  {["Model", "Serial Range", "Part Type", "Manual"].map((label) => (
-                    <th key={label} className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {whereUsed.map((item, index) => (
-                  <tr key={`${item.model}-${item.serial}-${index}`} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap text-gray-800 dark:text-white/90">
-                      {displayValue(item.model)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600 dark:text-gray-400">
-                      {displayValue(item.serial)}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 dark:text-gray-400">
-                      {displayValue(item.part_type)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {item.manual ? (
-                        <a
-                          href={item.manual}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-brand-600 hover:underline dark:text-brand-400"
-                        >
-                          View manual
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );
