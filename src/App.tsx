@@ -25,6 +25,7 @@ import UsersList from "./pages/Users/UsersList";
 import ClientRequestsList from "./pages/ClientRequests/ClientRequestsList";
 import PartsList from "./pages/Parts/PartsList";
 import PartDetail from "./pages/Parts/PartDetail";
+import PartDetailBc from "./pages/Parts/PartDetailBc";
 import PartsDiagrams from "./pages/Parts/PartsDiagrams";
 import PartsCompatibilityChat from "./pages/Parts/PartsCompatibilityChat";
 import Stocks from "./pages/Dashboard/Stocks";
@@ -134,6 +135,7 @@ export default function App() {
             <Route path="/orders" element={<OrdersList />} />
             <Route path="/orders/:orderNumber" element={<OrderDetail />} />
             <Route path="/parts" element={<PartsList />} />
+            <Route path="/parts/bc/:brand/:mpn" element={<PartDetailBc />} />
             <Route path="/parts/:mfr/:partNumber" element={<PartDetail />} />
             <Route path="/parts/diagrams" element={<PartsDiagrams />} />
             <Route path="/parts/compatibility-chat" element={<PartsCompatibilityChat />} />
