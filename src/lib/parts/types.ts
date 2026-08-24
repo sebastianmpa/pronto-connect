@@ -8,26 +8,58 @@ export interface PartLookupParams {
   partNumber: string;
 }
 
+export interface PartDetailBcParams {
+  storeId: number | string;
+  brand: string;
+  mpn: string;
+}
+
 export type InventoryValue = number | string | null;
 
+export interface PartStockLocation {
+  locationid: number | string | null;
+  onhand?: InventoryValue;
+  onhand_available?: InventoryValue;
+  allocated?: InventoryValue;
+  onorder_qty?: InventoryValue;
+  backorder_qty?: InventoryValue;
+  binlocation?: string | null;
+  cost?: InventoryValue;
+  min?: InventoryValue;
+  max?: InventoryValue;
+  summin?: InventoryValue;
+  summax?: InventoryValue;
+  [key: string]: unknown;
+}
+
 export interface PartLookupStockLevels {
-  level_1: InventoryValue;
-  level_2: InventoryValue;
-  level_3: InventoryValue;
-  level_4: InventoryValue;
+  level_1?: InventoryValue;
+  level_2?: InventoryValue;
+  level_3?: InventoryValue;
+  level_4?: InventoryValue;
+  [key: string]: unknown;
+}
+
+export interface PartLookupLocation {
+  location_id: number | string | null;
+  onhand?: InventoryValue;
+  onhand_available?: InventoryValue;
+  allocated?: InventoryValue;
+  backorder?: InventoryValue;
+  binlocation?: string | null;
+  binlocation2?: string | null;
+  binlocation3?: string | null;
+  binlocation4?: string | null;
+  stock_levels?: PartLookupStockLevels | null;
+  [key: string]: unknown;
 }
 
 export interface PartLookupStock {
-  location_id: number | string | null;
-  onhand: InventoryValue;
-  onhand_available: InventoryValue;
-  allocated: InventoryValue;
-  backorder: InventoryValue;
-  binlocation: string | null;
-  binlocation2: string | null;
-  binlocation3: string | null;
-  binlocation4: string | null;
-  stock_levels: PartLookupStockLevels;
+  location_id?: number | string | null;
+  onhand?: InventoryValue;
+  onhand_available?: InventoryValue;
+  locations?: PartLookupLocation[];
+  [key: string]: unknown;
 }
 
 export interface PartProductData {
@@ -50,27 +82,29 @@ export interface PartProductData {
 export type PartDynamicRow = Record<string, unknown>;
 
 export interface PartLookupItem {
-  sku: string;
+  sku?: string | null;
   mfr: string;
   partnumber: string;
-  description: string | null;
-  productThumbnailImage: string | null;
-  productStandarImage: string | null;
-  product: PartProductData | null;
-  stock: PartLookupStock | null;
-  allocated: InventoryValue;
-  backorder: InventoryValue;
-  supplier_stock: PartDynamicRow[];
-  eta: string | null;
-  treatment: string | null;
-  links: {
-    self?: string | null;
-    [key: string]: unknown;
-  } | null;
+  description?: string | null;
+  productThumbnailImage?: string | null;
+  productStandarImage?: string | null;
+  product?: PartProductData | null;
+  stock?: PartLookupStock | null;
+  allocated?: InventoryValue;
+  backorder?: InventoryValue;
+  supplier_stock?: PartDynamicRow[];
+  eta?: string | null;
+  treatment?: string | null;
+  links?: Record<string, unknown> | null;
+  [key: string]: unknown;
 }
 
 export interface PartLookupMeta {
   total: number;
+  limit?: number;
+  offset?: number;
+  page?: number;
+  [key: string]: unknown;
 }
 
 export interface PartLookupResponse {
@@ -78,21 +112,24 @@ export interface PartLookupResponse {
   meta: PartLookupMeta;
 }
 
-export interface PartStockLocation {
-  locationid: number | string | null;
-  onhand?: InventoryValue;
-  onhand_available?: InventoryValue;
-  allocated?: InventoryValue;
-  onorder_qty?: InventoryValue;
-  backorder_qty?: InventoryValue;
-  binlocation?: string | null;
-  cost?: InventoryValue;
-  min?: InventoryValue;
-  max?: InventoryValue;
-  summin?: InventoryValue;
-  summax?: InventoryValue;
+type PartLookupEnvelope = {
+  items?: PartLookupItem[];
+  data?: PartLookupItem[];
+  results?: PartLookupItem[];
+  meta?: Partial<PartLookupMeta> | null;
+  total?: number | string | null;
   [key: string]: unknown;
-}
+};
+
+/**
+ * GET /api/parts/lookup can return a collection envelope or, for older
+ * responses, a single item/array. The service normalizes all of them to
+ * PartLookupResponse so PartsTable always receives { items, meta }.
+ */
+export type PartLookupApiResponse =
+  | PartLookupItem
+  | PartLookupItem[]
+  | PartLookupEnvelope;
 
 export interface PartPurchaseOrdersMeta {
   total?: number;
@@ -107,6 +144,10 @@ export interface PartDetailLinks {
   [key: string]: unknown;
 }
 
+/**
+ * Current response from:
+ * GET /api/parts/detail?mfr=...&partnumber=...&locationid=...
+ */
 export interface PartDetailResponse {
   mfr: string;
   partnumber: string;
@@ -119,4 +160,14 @@ export interface PartDetailResponse {
   treatment?: string | null;
   links?: PartDetailLinks | null;
   [key: string]: unknown;
+}
+
+/**
+ * Response from:
+ * GET /api/parts/detail-bc?storeid=...&brand=...&mpn=...
+ */
+export interface PartDetailBcResponse extends PartDetailResponse {
+  brand: string;
+  mpn: string;
+  suppliers?: PartDynamicRow[];
 }

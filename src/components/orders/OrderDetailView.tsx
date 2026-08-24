@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { useLocation, useNavigate } from "react-router";
 import { useModal } from "../../hooks/useModal";
 import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
@@ -32,7 +33,32 @@ export default function OrderDetailView({
   onCancelled?: () => void;
 }) {
   const cancelModal = useModal();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isAlreadyCancelled = /cancel/i.test(order.status_text ?? "") || /cancel/i.test(order.business_status?.name ?? "");
+
+  const storeId =
+    order.storeid ??
+    order.store?.id ??
+    order.store?.storeid ??
+    order.store?.store_id ??
+    null;
+
+  const openPartDetail = (item: OrderDetailType["items"][number]) => {
+    const brand = String(item.brand ?? "").trim();
+    const mpn = String(item.mpn ?? "").trim();
+
+    if (!brand || !mpn || storeId === null || storeId === undefined || String(storeId).trim() === "") {
+      return;
+    }
+
+    navigate(
+      `/parts/bc/${encodeURIComponent(brand)}/${encodeURIComponent(mpn)}?storeid=${encodeURIComponent(String(storeId))}`,
+      {
+        state: { from: `${location.pathname}${location.search}` },
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -235,6 +261,7 @@ export default function OrderDetailView({
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Unit</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th>
+                      <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Dtl.</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -260,8 +287,37 @@ export default function OrderDetailView({
                         <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium capitalize text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400">
-                            {item.item_status.toLowerCase()}
+                            {String(item.item_status ?? "-").toLowerCase()}
                           </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {item.brand && item.mpn && storeId !== null && storeId !== undefined && String(storeId).trim() !== "" ? (
+                            <button
+                              type="button"
+                              onClick={() => openPartDetail(item)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-white/[0.10] dark:text-gray-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                              title={`View part detail: ${item.brand} ${item.mpn}`}
+                              aria-label={`View part detail for ${item.brand} ${item.mpn}`}
+                            >
+                              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <path
+                                  d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6S2.25 12 2.25 12Z"
+                                  stroke="currentColor"
+                                  strokeWidth="1.6"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                                <circle cx="12" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.6" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <span
+                              className="inline-flex h-8 w-8 items-center justify-center text-gray-300 dark:text-gray-700"
+                              title="Brand, MPN or Store ID is not available for this item"
+                            >
+                              -
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
