@@ -10,6 +10,7 @@ import {
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
 import ordersService from "../../lib/orders/ordersService";
 import type { OrderItem, OrdersSearchParams } from "../../lib/orders/types";
+import { downloadOrderInvoicePdf } from "../../lib/orders/orderInvoicePdf";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -47,11 +48,32 @@ export default function OrdersTable() {
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingOrder, setDownloadingOrder] = useState<string | null>(null);
+
+  const normalizeOrderNumber = (reference: string | undefined) =>
+    (reference ?? "").replace(/^E-/i, "").trim();
 
   const openDetail = (reference: string | undefined) => {
-    const rawNum = (reference ?? "").replace(/^E-/i, "").trim();
+    const rawNum = normalizeOrderNumber(reference);
     if (!rawNum) return;
     navigate(`/orders/${rawNum}`);
+  };
+
+  const downloadInvoice = async (item: OrderItem) => {
+    const rawNum = normalizeOrderNumber(item.reference ?? item.order_number);
+    if (!rawNum || downloadingOrder) return;
+
+    setDownloadingOrder(rawNum);
+    setError(null);
+
+    try {
+      const detail = await ordersService.getOrderDetail(rawNum);
+      await downloadOrderInvoicePdf(detail);
+    } catch {
+      setError("Failed to download the invoice PDF. Please try again.");
+    } finally {
+      setDownloadingOrder(null);
+    }
   };
 
   const fetchOrders = useCallback(
@@ -190,7 +212,7 @@ export default function OrdersTable() {
       </form>
 
       {/* ── Table ── */}
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
+      <div className="max-w-full overflow-x-hidden">
         {error && (
           <div className="px-4 py-3 m-4 text-sm text-red-700 bg-red-100 rounded-lg dark:bg-red-900/30 dark:text-red-400">
             {error}
@@ -210,66 +232,97 @@ export default function OrdersTable() {
             </svg>
           </div>
         ) : (
-          <Table>
+          <Table className="w-full table-fixed">
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order ID", "Order Date", "Reference / Order #", "Customer Name", "Email", "Source", ""].map(
-                  (label) => (
-                    <TableCell
-                      key={label}
-                      isHeader
-                      className="px-4 py-3 border border-gray-100 dark:border-white/[0.05]"
-                    >
-                      <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">
-                        {label}
-                      </p>
-                    </TableCell>
-                  )
-                )}
+                {[
+                  ["Order ID", "w-[10%]"],
+                  ["Order Date", "w-[11%]"],
+                  ["Reference / Order #", "w-[15%]"],
+                  ["Customer Name", "w-[16%]"],
+                  ["Email", "w-[25%]"],
+                  ["Source", "w-[13%]"],
+                  ["Dtl.", "w-[5%]"],
+                  ["PDF", "w-[5%]"],
+                ].map(([label, width]) => (
+                  <TableCell
+                    key={label}
+                    isHeader
+                    className={`${width} border border-gray-100 px-2 py-2.5 dark:border-white/[0.05]`}
+                  >
+                    <p className="text-center text-[11px] font-medium text-gray-700 dark:text-gray-400">
+                      {label}
+                    </p>
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     No orders found for the selected filters.
                   </td>
                 </TableRow>
               ) : (
                 items.map((item, i) => (
                   <TableRow key={item.salesOrderId ?? i}>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-xs font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
                       {item.salesOrderId ?? "—"}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                       {formatDate(item.orderDate)}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                       {item.reference ?? item.order_number ?? "—"}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                       {item.customerName}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap lowercase">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-xs lowercase text-gray-600 break-all dark:border-white/[0.05] dark:text-gray-400">
                       {item.customerEmail}
                     </TableCell>
-                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] whitespace-nowrap">
+                    <TableCell className="border border-gray-100 px-2 py-2.5 text-center">
                       <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
                         {item.source}
                       </span>
                     </TableCell>
-                    {/* Eye button */}
-                    <TableCell className="px-3 py-3 border border-gray-100 dark:border-white/[0.05] text-center">
+                    {/* Detail */}
+                    <TableCell className="border border-gray-100 px-1 py-2 text-center dark:border-white/[0.05]">
                       <button
+                        type="button"
                         onClick={() => openDetail(item.reference ?? item.order_number)}
                         title="View order detail"
-                        className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 transition-colors"
+                        aria-label="View order detail"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
                       >
-                        {/* Eye icon */}
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M12 5C6.47715 5 2 12 2 12C2 12 6.47715 19 12 19C17.5228 19 22 12 22 12C22 12 17.5228 5 12 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                           <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/>
                         </svg>
+                      </button>
+                    </TableCell>
+
+                    {/* Direct PDF invoice download */}
+                    <TableCell className="border border-gray-100 px-1 py-2 text-center dark:border-white/[0.05]">
+                      <button
+                        type="button"
+                        onClick={() => downloadInvoice(item)}
+                        disabled={Boolean(downloadingOrder)}
+                        title="Download invoice PDF"
+                        aria-label="Download invoice PDF"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 disabled:cursor-wait disabled:opacity-40 dark:hover:bg-brand-500/10"
+                      >
+                        {downloadingOrder === normalizeOrderNumber(item.reference ?? item.order_number) ? (
+                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
+                            <path className="opacity-75" d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 3V15M12 15L7.5 10.5M12 15L16.5 10.5M5 20H19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        )}
                       </button>
                     </TableCell>
                   </TableRow>
