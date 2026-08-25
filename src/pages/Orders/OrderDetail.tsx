@@ -4,7 +4,9 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import OrderDetailView from "../../components/orders/OrderDetailView";
 import ordersService from "../../lib/orders/ordersService";
+import customersService from "../../lib/customers/customersService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
+import type { CustomerHistory } from "../../lib/customers/types";
 
 export default function OrderDetail() {
   const { orderNumber } = useParams<{ orderNumber: string }>();
@@ -15,6 +17,8 @@ export default function OrderDetail() {
   const [order, setOrder] = useState<OrderDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchaseHistory, setPurchaseHistory] = useState<CustomerHistory | null>(null);
+  const [purchaseHistoryLoading, setPurchaseHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!orderNumber) return;
@@ -26,6 +30,55 @@ export default function OrderDetail() {
       .catch(() => setError("Could not load order details. Please try again."))
       .finally(() => setLoading(false));
   }, [orderNumber]);
+
+  useEffect(() => {
+    if (!order) {
+      setPurchaseHistory(null);
+      setPurchaseHistoryLoading(false);
+      return;
+    }
+
+    const customerId = String(order.header?.customer_id ?? "").trim();
+    const customerEmail = String(
+      order.header?.billing_address?.email ??
+        order.shipping_addresses?.[0]?.email ??
+        "",
+    ).trim();
+
+    // Reuse the exact same customer-detail service/endpoint used by Customer Detail.
+    // GET /customers/atc/v0/by-store/details?email=...&id=...
+    if (!customerId) {
+      setPurchaseHistory(null);
+      setPurchaseHistoryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPurchaseHistoryLoading(true);
+
+    customersService
+      .getDetail(customerEmail, customerId)
+      .then((detail) => {
+        if (!cancelled) {
+          setPurchaseHistory(detail.history ?? null);
+        }
+      })
+      .catch(() => {
+        // Purchase History must not block the order detail if the customer endpoint fails.
+        if (!cancelled) {
+          setPurchaseHistory(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPurchaseHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [order]);
 
   const refetch = () => {
     if (!orderNumber) return;
@@ -67,7 +120,14 @@ export default function OrderDetail() {
           </div>
         )}
 
-        {!loading && !error && order && <OrderDetailView order={order} onCancelled={refetch} />}
+        {!loading && !error && order && (
+          <OrderDetailView
+            order={order}
+            onCancelled={refetch}
+            purchaseHistory={purchaseHistory}
+            purchaseHistoryLoading={purchaseHistoryLoading}
+          />
+        )}
       </div>
     </>
   );

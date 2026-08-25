@@ -1,9 +1,12 @@
 import DOMPurify from "dompurify";
+import { useLocation, useNavigate } from "react-router";
 import { useModal } from "../../hooks/useModal";
 import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
+import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
+import type { CustomerHistory } from "../../lib/customers/types";
 
 // The customer status message can contain HTML (e.g. tracking links), so sanitize before rendering.
 function sanitizeHtml(html: string): string {
@@ -22,17 +25,119 @@ function fmtStatusDate(raw?: string | null): string | null {
   return raw ? formatDate(raw) : null;
 }
 
-const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
+function fmtHistoryCurrency(value: number): string {
+  return `$${Number(value || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function firstText(...values: unknown[]): string {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text) return text;
+  }
+
+  return "";
+}
+
+function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
+  const raw = item.raw ?? {};
+
+  const brand = firstText(
+    item.brand,
+    raw.brand,
+    raw.BRAND,
+    raw.mfr,
+    raw.MFRID,
+  );
+
+  let mpn = firstText(
+    item.mpn,
+    raw.mpn,
+    raw.MPN,
+    raw.partnumber,
+    raw.PARTNUMBER,
+    raw.manufacturer_part_number,
+  );
+
+  // Some order responses do not expose MPN separately even though the SKU is
+  // the manufacturer part number. Keep the existing part-detail action usable
+  // in that response shape without changing the order API.
+  if (!mpn) {
+    const sku = String(item.sku ?? "").trim();
+
+    if (sku) {
+      const upperBrand = brand.toUpperCase();
+      const upperSku = sku.toUpperCase();
+
+      mpn =
+        brand && upperSku.startsWith(`${upperBrand} `)
+          ? sku.slice(brand.length).trim()
+          : sku;
+    }
+  }
+
+  return { brand, mpn };
+}
+
+const STEPS = [
+  "Received",
+  "Processing",
+  "Awaiting Shipment",
+  "On the way",
+  "Delivered",
+];
 
 export default function OrderDetailView({
   order,
   onCancelled,
+  purchaseHistory,
+  purchaseHistoryLoading = false,
 }: {
   order: OrderDetailType;
   onCancelled?: () => void;
+  purchaseHistory?: CustomerHistory | null;
+  purchaseHistoryLoading?: boolean;
 }) {
   const cancelModal = useModal();
-  const isAlreadyCancelled = /cancel/i.test(order.status_text ?? "") || /cancel/i.test(order.business_status?.name ?? "");
+  const customerInfoModal = useModal();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // The visible customer-service status must come from customer_service_status.status.
+  // status_text/business_status can represent a different order/business status.
+  const customerServiceStatus = firstText(
+    order.customer_service_status?.status,
+    order.status_text,
+  );
+  const isCancelledStatus = /cancel/i.test(customerServiceStatus);
+  const isAlreadyCancelled =
+    isCancelledStatus ||
+    /cancel/i.test(order.status_text ?? "") ||
+    /cancel/i.test(order.business_status?.name ?? "");
+
+  const storeId =
+    order.storeid ??
+    order.store?.id ??
+    order.store?.storeid ??
+    order.store?.store_id ??
+    null;
+
+  const openPartDetail = (item: OrderDetailType["items"][number]) => {
+    const { brand, mpn } = resolvePartDetailInfo(item);
+
+    if (!brand || !mpn || storeId === null || storeId === undefined || String(storeId).trim() === "") {
+      return;
+    }
+
+    navigate(
+      `/parts/bc/${encodeURIComponent(brand)}/${encodeURIComponent(mpn)}?storeid=${encodeURIComponent(String(storeId))}`,
+      {
+        state: { from: `${location.pathname}${location.search}` },
+      },
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -49,16 +154,26 @@ export default function OrderDetailView({
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
-            {order.status_text}
+            {customerServiceStatus}
           </span>
-          {!isAlreadyCancelled && (
+          <div className="flex flex-wrap justify-end gap-2">
             <button
-              onClick={cancelModal.openModal}
-              className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+              type="button"
+              onClick={customerInfoModal.openModal}
+              className="rounded-lg border border-brand-300 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand-100 dark:border-brand-500/30 dark:bg-brand-500/10 dark:text-brand-400 dark:hover:bg-brand-500/20"
             >
-              Cancel Order
+              Change customer&apos;s Info
             </button>
-          )}
+            {!isAlreadyCancelled && (
+              <button
+                type="button"
+                onClick={cancelModal.openModal}
+                className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+              >
+                Cancel Order
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -69,6 +184,13 @@ export default function OrderDetailView({
         onCancelled={onCancelled}
       />
 
+      <ChangeCustomerInfoModal
+        isOpen={customerInfoModal.isOpen}
+        onClose={customerInfoModal.closeModal}
+        order={order}
+        onUpdated={onCancelled}
+      />
+
       {/* Progress stepper */}
       {order.customer_service_status && (
         <div>
@@ -77,6 +199,10 @@ export default function OrderDetailView({
               const currentIndex = (order.customer_service_status?.step ?? 0) - 1;
               const completed = i < currentIndex;
               const current = i === currentIndex;
+              // The API status replaces the predefined label only on the active step.
+              // Example: step=2 + status="PICKING" => circle 2 displays PICKING,
+              // while the remaining circles keep their predefined labels.
+              const displayLabel = current && customerServiceStatus ? customerServiceStatus : label;
               // The segment right before this circle is "done" once the previous circle is completed.
               const segmentBeforeDone = i > 0 && i - 1 < currentIndex;
               // The segment right after this circle is "done" once this circle itself is completed.
@@ -110,26 +236,47 @@ export default function OrderDetailView({
                     )}
                     <div
                       className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                        completed
-                          ? "bg-green-500 text-white"
-                          : current
-                            ? "bg-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-500/30"
-                            : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                        current && isCancelledStatus
+                          ? "bg-red-500 text-white ring-2 ring-red-200 dark:ring-red-500/30"
+                          : completed
+                            ? "bg-green-500 text-white"
+                            : current
+                              ? "bg-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-500/30"
+                              : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
                       }`}
                     >
-                      {i + 1}
+                      {current && isCancelledStatus ? (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M8 8L16 16M16 8L8 16"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      ) : (
+                        i + 1
+                      )}
                     </div>
                   </div>
                   <span
                     className={`mt-1.5 text-xs text-center ${
-                      completed
-                        ? "text-green-600 dark:text-green-400 font-medium"
-                        : current
-                          ? "text-blue-600 dark:text-blue-400 font-medium"
-                          : "text-gray-400"
+                      current && isCancelledStatus
+                        ? "font-semibold text-red-600 dark:text-red-400"
+                        : completed
+                          ? "text-green-600 dark:text-green-400 font-medium"
+                          : current
+                            ? "text-blue-600 dark:text-blue-400 font-medium"
+                            : "text-gray-400"
                     }`}
                   >
-                    {label}
+                    {displayLabel}
                   </span>
                   {stepDate && (
                     <span className="text-[11px] text-center text-gray-600 dark:text-gray-400">
@@ -219,6 +366,35 @@ export default function OrderDetailView({
             )}
           </div>
 
+          {/* Purchase History uses the same customer-detail endpoint/data as Customer Detail. */}
+          <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Purchase History
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-white/[0.03]">
+                <p className="text-xl font-bold text-gray-800 dark:text-white/90">
+                  {purchaseHistoryLoading
+                    ? "..."
+                    : purchaseHistory
+                      ? purchaseHistory.totalOrders
+                      : "—"}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Orders</p>
+              </div>
+              <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-white/[0.03]">
+                <p className="text-xl font-bold text-gray-800 dark:text-white/90">
+                  {purchaseHistoryLoading
+                    ? "..."
+                    : purchaseHistory
+                      ? fmtHistoryCurrency(purchaseHistory.totalAmount)
+                      : "—"}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
+              </div>
+            </div>
+          </div>
+
           {/* Items stay inside the same two-column order area. */}
           {order.items?.length > 0 && (
             <div>
@@ -235,6 +411,7 @@ export default function OrderDetailView({
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Unit</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th>
+                      <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Dtl.</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
@@ -260,8 +437,47 @@ export default function OrderDetailView({
                         <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
                         <td className="px-4 py-3 text-center">
                           <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium capitalize text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400">
-                            {item.item_status.toLowerCase()}
+                            {String(item.item_status ?? "-").toLowerCase()}
                           </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {(() => {
+                            const { brand, mpn } = resolvePartDetailInfo(item);
+                            const canOpenPartDetail =
+                              Boolean(brand) &&
+                              Boolean(mpn) &&
+                              storeId !== null &&
+                              storeId !== undefined &&
+                              String(storeId).trim() !== "";
+
+                            return canOpenPartDetail ? (
+                              <button
+                                type="button"
+                                onClick={() => openPartDetail(item)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-white/[0.10] dark:text-gray-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
+                                title={`View part detail: ${brand} ${mpn}`}
+                                aria-label={`View part detail for ${brand} ${mpn}`}
+                              >
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path
+                                    d="M2.25 12s3.5-6 9.75-6 9.75 6 9.75 6-3.5 6-9.75 6S2.25 12 2.25 12Z"
+                                    stroke="currentColor"
+                                    strokeWidth="1.6"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                  <circle cx="12" cy="12" r="2.75" stroke="currentColor" strokeWidth="1.6" />
+                                </svg>
+                              </button>
+                            ) : (
+                              <span
+                                className="inline-flex h-8 w-8 items-center justify-center text-gray-300 dark:text-gray-700"
+                                title="Brand, MPN or Store ID is not available for this item"
+                              >
+                                -
+                              </span>
+                            );
+                          })()}
                         </td>
                       </tr>
                     ))}

@@ -39,6 +39,8 @@ export interface OrderDetailItem {
   product_id: number;
   variant_id: number;
   sku: string;
+  mpn?: string | null;
+  brand?: string | null;
   name: string;
   url_thumbnail: string;
   quantity: number;
@@ -47,6 +49,12 @@ export interface OrderDetailItem {
   total_price: string;
   raw?: {
     brand?: string;
+    package?: string | number | null;
+    package_info?: string | number | null;
+    package_label?: string | number | null;
+    pack?: string | number | null;
+    pack_qty?: string | number | null;
+    package_quantity?: string | number | null;
     [key: string]: unknown;
   };
 }
@@ -92,6 +100,7 @@ export interface OrderHeader {
   total_inc_tax: string;
   subtotal_inc_tax: string;
   shipping_cost_inc_tax: string;
+  total_tax?: string;
   items_total: number;
   items_shipped: number;
   payment_method: string;
@@ -185,8 +194,40 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
+
+export interface OrderStore {
+  description: string;
+  url: string;
+  logo_color: string | null;
+  logo_white: string | null;
+
+  // Store identifier used by GET /api/parts/detail-bc.
+  // The API may expose the same identifier with any of these names.
+  id?: number | string | null;
+  storeid?: number | string | null;
+  store_id?: number | string | null;
+
+  // Invoice configuration returned by the order API. Its exact inner shape is
+  // intentionally left open so the PDF can consume the backend value without
+  // forcing a frontend-only schema.
+  invoice?: unknown;
+
+  // Backward-compatible fields used only if invoice does not provide them.
+  address_line_1?: string | null;
+  address_line_2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  email?: string | null;
+
+  [key: string]: unknown;
+}
+
 export interface OrderDetail {
   order_number: string;
+  storeid?: number | string | null;
+  store?: OrderStore | null;
   source: string;
   status_text: string;
   business_status: { name: string } | null;
