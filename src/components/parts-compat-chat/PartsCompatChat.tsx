@@ -6,9 +6,9 @@ import { formatTime } from "../../utils/date";
 import { useAuthStore } from "../../store/authStore";
 import ragChatService from "../../lib/rag-chat/ragChatService";
 import type { ChatMessage } from "../../lib/rag-chat/types";
+import storesService from "../../lib/stores/storesService";
+import type { Store } from "../../lib/stores/types";
 
-// The RAG service currently indexes a single storefront's catalog.
-const STORE_DOMAIN = "www.echopartsonline.com";
 const LANG = "en-US";
 
 type Rating = "good" | "neutral" | "bad";
@@ -17,6 +17,14 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length <= 1) return { firstName: parts[0] ?? "Agent", lastName: "Agent" };
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function extractDomain(urlStore: string): string {
+  try {
+    return new URL(urlStore).hostname;
+  } catch {
+    return urlStore;
+  }
 }
 
 function getInitials(name?: string): string {
@@ -220,12 +228,20 @@ export default function PartsCompatChat() {
   const [customerError, setCustomerError] = useState<string | null>(null);
   const [retryTick, setRetryTick] = useState(0);
 
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesError, setStoresError] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typing, setTyping] = useState(false);
   const [conversationEnded, setConversationEnded] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [showRating, setShowRating] = useState(false);
+
+  const selectedStore = stores.find((store) => store.id === selectedStoreId) ?? null;
+  const storeDomain = selectedStore ? extractDomain(selectedStore.urlStore) : "";
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
@@ -286,12 +302,42 @@ export default function PartsCompatChat() {
       .finally(() => setCustomerLoading(false));
   }, [user?.email, user?.name, retryTick]);
 
+  function loadStores() {
+    setStoresLoading(true);
+    setStoresError(null);
+
+    storesService
+      .getAll()
+      .then((data) => {
+        setStores(data);
+        const defaultStore =
+          data.find((store) => store.name.trim().toUpperCase() === "SMALL ENGINES PRO DEALER") ??
+          data[0] ??
+          null;
+        setSelectedStoreId((current) => current ?? defaultStore?.id ?? null);
+      })
+      .catch(() => setStoresError("Could not load stores."))
+      .finally(() => setStoresLoading(false));
+  }
+
+  useEffect(() => {
+    loadStores();
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages.length, typing, showEndConfirm, showRating]);
 
   const composerDisabled =
-    customerLoading || !!customerError || conversationEnded || typing || showEndConfirm || showRating;
+    customerLoading ||
+    !!customerError ||
+    storesLoading ||
+    !!storesError ||
+    !storeDomain ||
+    conversationEnded ||
+    typing ||
+    showEndConfirm ||
+    showRating;
 
   function autoResize(el: HTMLTextAreaElement) {
     el.style.height = "auto";
@@ -314,7 +360,7 @@ export default function PartsCompatChat() {
         conversation_id: conversationId ?? undefined,
         question,
         lang: LANG,
-        store_domain: STORE_DOMAIN,
+        store_domain: storeDomain,
       });
 
       if (response.conversation_id) setConversationId(response.conversation_id);
@@ -373,6 +419,16 @@ export default function PartsCompatChat() {
       event.preventDefault();
       submitFromInput();
     }
+  }
+
+  function handleStoreChange(id: number) {
+    if (id === selectedStoreId) return;
+    setSelectedStoreId(id);
+    setConversationId(null);
+    setConversationEnded(false);
+    setShowRating(false);
+    setShowEndConfirm(false);
+    setMessages([welcomeMessage()]);
   }
 
   function resetConversation() {
@@ -460,6 +516,39 @@ export default function PartsCompatChat() {
           >
             <CloseIcon />
             End chat
+          </button>
+        )}
+      </div>
+
+      {/* Store selector */}
+      <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/70 px-5 py-2.5 dark:border-white/5 dark:bg-white/[0.02]">
+        <label htmlFor="pc-store" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+          Store:
+        </label>
+        <select
+          id="pc-store"
+          value={selectedStoreId ?? ""}
+          onChange={(event) => handleStoreChange(Number(event.target.value))}
+          disabled={storesLoading || !!storesError || stores.length === 0}
+          className="h-8 rounded-lg border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-700 outline-hidden focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-300"
+        >
+          {storesLoading && <option value="">Loading stores…</option>}
+          {storesError && <option value="">Could not load stores</option>}
+          {!storesLoading &&
+            !storesError &&
+            stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+        </select>
+        {storesError && (
+          <button
+            type="button"
+            onClick={loadStores}
+            className="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400"
+          >
+            Retry
           </button>
         )}
       </div>
