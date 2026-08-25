@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { formatDateTime } from "../../utils/date";
+import emailLogsService from "../../lib/email-logs/emailLogsService";
+import type { EmailLogItem } from "../../lib/email-logs/types";
 import type {
   OrderAtcForm,
   OrderCancellation,
@@ -134,7 +136,7 @@ function statusBadge(value?: string | null) {
   if (!value) return null;
 
   return (
-    <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">
+    <span className="inline-flex max-w-full items-center rounded-full bg-gray-100 px-2 py-0.5 text-center text-[11px] font-medium leading-4 text-gray-600 whitespace-normal break-words dark:bg-white/[0.06] dark:text-gray-300">
       {value}
     </span>
   );
@@ -166,7 +168,7 @@ interface ActivityListProps<T> {
 
 function ActivityList<T>({ items, getKey, renderItem }: ActivityListProps<T>) {
   return (
-    <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto pr-1 dark:divide-white/[0.06]">
+    <div className="max-h-80 divide-y divide-gray-100 overflow-x-hidden overflow-y-auto pr-2 dark:divide-white/[0.06]">
       {items.map((item, index) => (
         <div key={getKey(item, index)} className="py-3 first:pt-0 last:pb-0">
           {renderItem(item, index)}
@@ -263,12 +265,19 @@ export default function OrderClientRequestsPanel({
     }));
   };
 
-  const openClientRequests = (orderNumber?: string | null) => {
-    const value = String(orderNumber ?? "").trim();
+  const openClientRequest = (item: OrderAtcForm) => {
+    const orderNumber = String(item.order_number ?? "").trim();
+    const requestId = Number(item.id);
 
-    navigate(value ? `/client-requests?order_id=${encodeURIComponent(value)}` : "/client-requests", {
-      state: backState,
-    });
+    if (!orderNumber || !Number.isFinite(requestId) || requestId <= 0) {
+      navigate("/client-requests", { state: backState });
+      return;
+    }
+
+    navigate(
+      `/client-requests?order_id=${encodeURIComponent(orderNumber)}&request_id=${encodeURIComponent(String(requestId))}`,
+      { state: backState },
+    );
   };
 
   const openCancellation = (salesOrderId: string | number) => {
@@ -292,10 +301,61 @@ export default function OrderClientRequestsPanel({
     });
   };
 
-  const openEmailLog = (id: number) => {
-    navigate(`/email-logs/${id}`, {
-      state: backState,
-    });
+  const loadFullEmailLog = async (item: OrderEmailLog): Promise<EmailLogItem | null> => {
+    const orderNumber = String(item.order_number ?? "").trim();
+    if (!orderNumber) return null;
+
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const response = await emailLogsService.getPaginated({
+        page,
+        limit: 100,
+        order_number: orderNumber,
+      });
+
+      const rows = Array.isArray(response.items) ? response.items : [];
+      const fullLog = rows.find((log) => Number(log.id) === Number(item.id));
+
+      if (fullLog) return fullLog;
+
+      totalPages = Math.max(Number(response.totalPages) || 1, 1);
+      page += 1;
+    } while (page <= totalPages);
+
+    return null;
+  };
+
+  const openEmailLog = async (item: OrderEmailLog) => {
+    try {
+      const log = await loadFullEmailLog(item);
+
+      if (!log) {
+        window.alert(
+          "The complete email log could not be loaded. Please open Email Logs and try again.",
+        );
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(`email-log:${log.id}`, JSON.stringify(log));
+      } catch {
+        // Route state below is enough for the normal navigation flow.
+      }
+
+      navigate(`/email-logs/${log.id}`, {
+        state: {
+          log,
+          from: backState.from,
+        },
+      });
+    } catch (error) {
+      console.error("Unable to load email log detail from order activity.", error);
+      window.alert(
+        "The complete email log could not be loaded. Please try again.",
+      );
+    }
   };
 
   return (
@@ -343,8 +403,8 @@ export default function OrderClientRequestsPanel({
                   </div>
 
                   <DetailButton
-                    onClick={() => openClientRequests(item.order_number)}
-                    title="Open client requests"
+                    onClick={() => openClientRequest(item)}
+                    title="View client request detail"
                   />
                 </div>
               )}
@@ -420,7 +480,7 @@ export default function OrderClientRequestsPanel({
                       )}
 
                       {item.notes && (
-                        <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">
                           {item.notes}
                         </p>
                       )}
@@ -479,7 +539,7 @@ export default function OrderClientRequestsPanel({
                     </div>
 
                     {item.message && (
-                      <p className="mt-1 line-clamp-2 text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-5 text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">
                         {item.message}
                       </p>
                     )}
@@ -517,21 +577,24 @@ export default function OrderClientRequestsPanel({
               items={sortedEmailLogs}
               getKey={(item) => item.id}
               renderItem={(item) => (
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-2.5">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p
-                        className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800 dark:text-white/90"
-                        title={item.subject || undefined}
-                      >
-                        {item.subject || "Email"}
-                      </p>
-                      {statusBadge(item.status)}
-                      {statusBadge(item.order_status)}
-                    </div>
+                    <p
+                      className="w-full whitespace-normal break-words text-sm font-medium leading-5 text-gray-800 [overflow-wrap:anywhere] dark:text-white/90"
+                      title={item.subject || undefined}
+                    >
+                      {item.subject || "Email"}
+                    </p>
+
+                    {(item.status || item.order_status) && (
+                      <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
+                        {statusBadge(item.status)}
+                        {statusBadge(item.order_status)}
+                      </div>
+                    )}
 
                     {item.recipient && (
-                      <p className="mt-1 truncate text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1.5 whitespace-normal break-words text-xs leading-5 text-gray-500 [overflow-wrap:anywhere] dark:text-gray-400">
                         To: {item.recipient}
                       </p>
                     )}
@@ -539,10 +602,12 @@ export default function OrderClientRequestsPanel({
                     <ActivityDate value={item.sent_at} />
                   </div>
 
-                  <DetailButton
-                    onClick={() => openEmailLog(item.id)}
-                    title="View email detail"
-                  />
+                  <div className="shrink-0 pt-0.5">
+                    <DetailButton
+                      onClick={() => void openEmailLog(item)}
+                      title="View email detail"
+                    />
+                  </div>
                 </div>
               )}
             />
