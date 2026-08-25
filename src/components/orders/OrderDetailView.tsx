@@ -73,7 +73,13 @@ function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
   return { brand, mpn };
 }
 
-const STEPS = ["Received", "Processing", "Shipped", "Delivered"];
+const STEPS = [
+  "Received",
+  "Processing",
+  "Awaiting Shipment",
+  "On the way",
+  "Delivered",
+];
 
 export default function OrderDetailView({
   order,
@@ -86,7 +92,18 @@ export default function OrderDetailView({
   const customerInfoModal = useModal();
   const navigate = useNavigate();
   const location = useLocation();
-  const isAlreadyCancelled = /cancel/i.test(order.status_text ?? "") || /cancel/i.test(order.business_status?.name ?? "");
+
+  // The visible customer-service status must come from customer_service_status.status.
+  // status_text/business_status can represent a different order/business status.
+  const customerServiceStatus = firstText(
+    order.customer_service_status?.status,
+    order.status_text,
+  );
+  const isCancelledStatus = /cancel/i.test(customerServiceStatus);
+  const isAlreadyCancelled =
+    isCancelledStatus ||
+    /cancel/i.test(order.status_text ?? "") ||
+    /cancel/i.test(order.business_status?.name ?? "");
 
   const storeId =
     order.storeid ??
@@ -125,7 +142,7 @@ export default function OrderDetailView({
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
-            {order.status_text}
+            {customerServiceStatus}
           </span>
           <div className="flex flex-wrap justify-end gap-2">
             <button
@@ -170,6 +187,10 @@ export default function OrderDetailView({
               const currentIndex = (order.customer_service_status?.step ?? 0) - 1;
               const completed = i < currentIndex;
               const current = i === currentIndex;
+              // The API status replaces the predefined label only on the active step.
+              // Example: step=2 + status="PICKING" => circle 2 displays PICKING,
+              // while the remaining circles keep their predefined labels.
+              const displayLabel = current && customerServiceStatus ? customerServiceStatus : label;
               // The segment right before this circle is "done" once the previous circle is completed.
               const segmentBeforeDone = i > 0 && i - 1 < currentIndex;
               // The segment right after this circle is "done" once this circle itself is completed.
@@ -203,26 +224,47 @@ export default function OrderDetailView({
                     )}
                     <div
                       className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
-                        completed
-                          ? "bg-green-500 text-white"
-                          : current
-                            ? "bg-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-500/30"
-                            : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
+                        current && isCancelledStatus
+                          ? "bg-red-500 text-white ring-2 ring-red-200 dark:ring-red-500/30"
+                          : completed
+                            ? "bg-green-500 text-white"
+                            : current
+                              ? "bg-blue-600 text-white ring-2 ring-blue-200 dark:ring-blue-500/30"
+                              : "bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500"
                       }`}
                     >
-                      {i + 1}
+                      {current && isCancelledStatus ? (
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <path
+                            d="M8 8L16 16M16 8L8 16"
+                            stroke="currentColor"
+                            strokeWidth="2.2"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      ) : (
+                        i + 1
+                      )}
                     </div>
                   </div>
                   <span
                     className={`mt-1.5 text-xs text-center ${
-                      completed
-                        ? "text-green-600 dark:text-green-400 font-medium"
-                        : current
-                          ? "text-blue-600 dark:text-blue-400 font-medium"
-                          : "text-gray-400"
+                      current && isCancelledStatus
+                        ? "font-semibold text-red-600 dark:text-red-400"
+                        : completed
+                          ? "text-green-600 dark:text-green-400 font-medium"
+                          : current
+                            ? "text-blue-600 dark:text-blue-400 font-medium"
+                            : "text-gray-400"
                     }`}
                   >
-                    {label}
+                    {displayLabel}
                   </span>
                   {stepDate && (
                     <span className="text-[11px] text-center text-gray-600 dark:text-gray-400">

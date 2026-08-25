@@ -51,7 +51,10 @@ export default function OrdersTable() {
   const [downloadingOrder, setDownloadingOrder] = useState<string | null>(null);
 
   const normalizeOrderNumber = (reference: string | undefined) =>
-    (reference ?? "").replace(/^E-/i, "").trim();
+    (reference ?? "")
+      .replace(/^E-/i, "")
+      .replace(/-RET$/i, "")
+      .trim();
 
   const openDetail = (reference: string | undefined) => {
     const rawNum = normalizeOrderNumber(reference);
