@@ -140,8 +140,13 @@ export default function PartsTable() {
       return;
     }
 
+    // IDEAL location 0 must open Part Detail using location 4.
+    // The list keeps showing the original location value (0); only the detail
+    // request is remapped.
+    const detailLocationId = Number(locationId) === 0 ? 4 : locationId;
+
     const query = new URLSearchParams({
-      locationid: String(locationId),
+      locationid: String(detailLocationId),
     }).toString();
 
     navigate(

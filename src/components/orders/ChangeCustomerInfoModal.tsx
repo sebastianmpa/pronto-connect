@@ -20,18 +20,27 @@ interface CustomerInfoForm {
   email: string;
   phone: string;
   address: string;
+  city: string;
+  state: string;
+  zip: string;
 }
 
 interface AddressSource {
   email?: string | null;
   phone?: string | null;
   street_1?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
 }
 
 const EMPTY_FORM: CustomerInfoForm = {
   email: "",
   phone: "",
   address: "",
+  city: "",
+  state: "",
+  zip: "",
 };
 
 function formFromAddress(address?: AddressSource | null): CustomerInfoForm {
@@ -41,6 +50,9 @@ function formFromAddress(address?: AddressSource | null): CustomerInfoForm {
     email: String(address.email ?? ""),
     phone: String(address.phone ?? ""),
     address: String(address.street_1 ?? ""),
+    city: String(address.city ?? ""),
+    state: String(address.state ?? ""),
+    zip: String(address.zip ?? ""),
   };
 }
 
@@ -49,48 +61,85 @@ function normalizeForm(form: CustomerInfoForm): CustomerInfoForm {
     email: form.email.trim(),
     phone: form.phone.trim(),
     address: form.address.trim(),
+    city: form.city.trim(),
+    state: form.state.trim(),
+    zip: form.zip.trim(),
   };
 }
 
-function validateForm(form: CustomerInfoForm): string | null {
+function validateForm(form: CustomerInfoForm, label: string): string | null {
   const normalized = normalizeForm(form);
 
   if (normalized.email) {
     if (normalized.email.length > 100) {
-      return "Email cannot contain more than 100 characters.";
+      return `${label}: Email cannot contain more than 100 characters.`;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized.email)) {
-      return "Enter a valid email address.";
+      return `${label}: Enter a valid email address.`;
     }
   }
 
   if (normalized.phone.length > 35) {
-    return "Phone cannot contain more than 35 characters.";
+    return `${label}: Phone cannot contain more than 35 characters.`;
   }
 
   if (normalized.address.length > 60) {
-    return "Address cannot contain more than 60 characters.";
+    return `${label}: Address cannot contain more than 60 characters.`;
+  }
+
+  if (normalized.city.length > 50) {
+    return `${label}: City cannot contain more than 50 characters.`;
+  }
+
+  if (normalized.state.length > 50) {
+    return `${label}: State cannot contain more than 50 characters.`;
+  }
+
+  if (normalized.zip.length > 20) {
+    return `${label}: ZIP Code cannot contain more than 20 characters.`;
   }
 
   return null;
 }
 
-function successMessage(
+function buildPayload(
+  type: CustomerAddressType,
+  currentForm: CustomerInfoForm,
+  originalForm: CustomerInfoForm,
+): UpdateCustomerInfoPayload | null {
+  const current = normalizeForm(currentForm);
+  const original = normalizeForm(originalForm);
+
+  const payload: UpdateCustomerInfoPayload = {
+    address_type: type,
+  };
+
+  if (current.email !== original.email) payload.email = current.email;
+  if (current.phone !== original.phone) payload.phone = current.phone;
+  if (current.address !== original.address) payload.street_1 = current.address;
+  if (current.city !== original.city) payload.city = current.city;
+  if (current.state !== original.state) payload.state = current.state;
+  if (current.zip !== original.zip) payload.zip = current.zip;
+
+  return Object.keys(payload).length > 1 ? payload : null;
+}
+
+function targetSuccessMessage(
   response: UpdateCustomerInfoResponse,
   addressType: CustomerAddressType,
 ): string {
   const target = addressType === "billing" ? "Billing" : "Shipping";
 
   if (response.shipworks?.updated === true) {
-    return `${target} information was updated successfully in BigCommerce and ShipWorks.`;
+    return `${target} updated in BigCommerce and ShipWorks.`;
   }
 
   if (response.shipworks?.order_found === false) {
-    return `${target} information was updated in BigCommerce. The order was not found in ShipWorks.`;
+    return `${target} updated in BigCommerce; the order was not found in ShipWorks.`;
   }
 
-  return `${target} information was updated successfully.`;
+  return `${target} updated successfully.`;
 }
 
 export default function ChangeCustomerInfoModal({
@@ -102,6 +151,8 @@ export default function ChangeCustomerInfoModal({
   const [addressType, setAddressType] = useState<CustomerAddressType>("shipping");
   const [shippingForm, setShippingForm] = useState<CustomerInfoForm>(EMPTY_FORM);
   const [billingForm, setBillingForm] = useState<CustomerInfoForm>(EMPTY_FORM);
+  const [originalShippingForm, setOriginalShippingForm] = useState<CustomerInfoForm>(EMPTY_FORM);
+  const [originalBillingForm, setOriginalBillingForm] = useState<CustomerInfoForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -110,9 +161,14 @@ export default function ChangeCustomerInfoModal({
   useEffect(() => {
     if (!isOpen) return;
 
+    const shipping = formFromAddress(order.shipping_addresses?.[0] ?? null);
+    const billing = formFromAddress(order.header?.billing_address ?? null);
+
     setAddressType("shipping");
-    setShippingForm(formFromAddress(order.shipping_addresses?.[0] ?? null));
-    setBillingForm(formFromAddress(order.header?.billing_address ?? null));
+    setShippingForm(shipping);
+    setBillingForm(billing);
+    setOriginalShippingForm(shipping);
+    setOriginalBillingForm(billing);
     setSaving(false);
     setError(null);
     setSuccess(null);
@@ -120,11 +176,6 @@ export default function ChangeCustomerInfoModal({
   }, [isOpen, order]);
 
   const activeForm = addressType === "shipping" ? shippingForm : billingForm;
-
-  const originalForm =
-    addressType === "shipping"
-      ? formFromAddress(order.shipping_addresses?.[0] ?? null)
-      : formFromAddress(order.header?.billing_address ?? null);
 
   const setActiveForm = (
     updater: (current: CustomerInfoForm) => CustomerInfoForm,
@@ -151,25 +202,33 @@ export default function ChangeCustomerInfoModal({
   };
 
   const handleSave = async () => {
-    const validationError = validateForm(activeForm);
-    if (validationError) {
-      setError(validationError);
+    const shippingValidationError = validateForm(shippingForm, "Shipping");
+    if (shippingValidationError) {
+      setAddressType("shipping");
+      setError(shippingValidationError);
       return;
     }
 
-    const current = normalizeForm(activeForm);
-    const original = normalizeForm(originalForm);
+    const billingValidationError = validateForm(billingForm, "Billing");
+    if (billingValidationError) {
+      setAddressType("billing");
+      setError(billingValidationError);
+      return;
+    }
 
-    const payload: UpdateCustomerInfoPayload = {
-      address_type: addressType,
-    };
+    const shippingPayload = buildPayload(
+      "shipping",
+      shippingForm,
+      originalShippingForm,
+    );
+    const billingPayload = buildPayload(
+      "billing",
+      billingForm,
+      originalBillingForm,
+    );
 
-    if (current.email !== original.email) payload.email = current.email;
-    if (current.phone !== original.phone) payload.phone = current.phone;
-    if (current.address !== original.address) payload.street_1 = current.address;
-
-    if (Object.keys(payload).length === 1) {
-      setError("There are no changes to save.");
+    if (!shippingPayload && !billingPayload) {
+      setError("There are no changes to save in Shipping or Billing.");
       return;
     }
 
@@ -177,23 +236,58 @@ export default function ChangeCustomerInfoModal({
     setError(null);
     setSuccess(null);
 
-    try {
-      const response = await orderCustomerInfoService.updateCustomerInfo(
-        order.order_number,
-        payload,
-      );
+    const successMessages: string[] = [];
+    const errorMessages: string[] = [];
+    let savedSomething = false;
 
-      if (response.success === false) {
-        throw new Error(response.message || "Customer information was not updated.");
+    if (shippingPayload) {
+      try {
+        const response = await orderCustomerInfoService.updateCustomerInfo(
+          order.order_number,
+          shippingPayload,
+        );
+
+        if (response.success === false) {
+          throw new Error(response.message || "Shipping information was not updated.");
+        }
+
+        savedSomething = true;
+        setOriginalShippingForm(normalizeForm(shippingForm));
+        successMessages.push(targetSuccessMessage(response, "shipping"));
+      } catch (saveError) {
+        errorMessages.push(`Shipping: ${getCustomerInfoUpdateError(saveError)}`);
       }
-
-      setUpdated(true);
-      setSuccess(successMessage(response, addressType));
-    } catch (saveError) {
-      setError(getCustomerInfoUpdateError(saveError));
-    } finally {
-      setSaving(false);
     }
+
+    if (billingPayload) {
+      try {
+        const response = await orderCustomerInfoService.updateCustomerInfo(
+          order.order_number,
+          billingPayload,
+        );
+
+        if (response.success === false) {
+          throw new Error(response.message || "Billing information was not updated.");
+        }
+
+        savedSomething = true;
+        setOriginalBillingForm(normalizeForm(billingForm));
+        successMessages.push(targetSuccessMessage(response, "billing"));
+      } catch (saveError) {
+        errorMessages.push(`Billing: ${getCustomerInfoUpdateError(saveError)}`);
+      }
+    }
+
+    if (savedSomething) {
+      setUpdated(true);
+      setSuccess(successMessages.join(" "));
+    }
+
+    if (errorMessages.length > 0) {
+      setError(errorMessages.join(" "));
+    }
+
+    setSaving(false);
   };
 
   const handleClose = () => {
@@ -234,7 +328,10 @@ export default function ChangeCustomerInfoModal({
           Change customer&apos;s Info
         </h3>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Update Email, Phone or Address for Shipping or Billing.
+          Update Email, Phone, Address, City, State or ZIP for Shipping or Billing.
+        </p>
+        <p className="mt-1 text-xs text-gray-400">
+          Save changes applies all edits made in both Shipping and Billing.
         </p>
       </div>
 
@@ -296,6 +393,45 @@ export default function ChangeCustomerInfoModal({
             onChange={(event) => updateField("address", event.target.value)}
             className={inputClass}
             placeholder="Customer address"
+            disabled={saving}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>City</label>
+          <input
+            type="text"
+            value={activeForm.city}
+            maxLength={50}
+            onChange={(event) => updateField("city", event.target.value)}
+            className={inputClass}
+            placeholder="Customer city"
+            disabled={saving}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>State</label>
+          <input
+            type="text"
+            value={activeForm.state}
+            maxLength={50}
+            onChange={(event) => updateField("state", event.target.value)}
+            className={inputClass}
+            placeholder="Customer state"
+            disabled={saving}
+          />
+        </div>
+
+        <div>
+          <label className={labelClass}>ZIP Code</label>
+          <input
+            type="text"
+            value={activeForm.zip}
+            maxLength={20}
+            onChange={(event) => updateField("zip", event.target.value)}
+            className={inputClass}
+            placeholder="Customer ZIP"
             disabled={saving}
           />
         </div>

@@ -8,9 +8,12 @@ import {
   TableRow,
 } from "../ui/table";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
+import FilteredResultsToolbar from "../common/FilteredResultsToolbar";
 import cancellationsService from "../../lib/cancellations/cancellationsService";
 import type { CancellationItem, CancellationsParams } from "../../lib/cancellations/types";
 import { formatDate, formatDateTime } from "../../utils/date";
+import { fetchAllPages } from "../../utils/paginatedData";
+import { downloadRowsAsXlsx } from "../../utils/xlsxExport";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -40,12 +43,39 @@ export default function CancellationsTable() {
   const [items, setItems] = useState<CancellationItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [overallTotalItems, setOverallTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     cancellationsService.getUsers().then(setUsers).catch(() => setUsers([]));
   }, []);
+
+  const fetchOverallTotal = useCallback(async () => {
+    try {
+      const response = await cancellationsService.getPaginated({ page: 1, limit: 10 });
+      setOverallTotalItems(response.totalItems ?? 0);
+    } catch {
+      // Keep the last known total if the secondary count request fails.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchOverallTotal();
+  }, [fetchOverallTotal]);
+
+  const buildParams = useCallback(
+    (p: number, pageLimit: number): CancellationsParams => ({
+      page: p,
+      limit: pageLimit,
+      ...(orderNumber && { orderNumber }),
+      ...(startDate && { startDate }),
+      ...(endDate && { endDate }),
+      ...(user && { user }),
+    }),
+    [orderNumber, startDate, endDate, user],
+  );
 
   const openDetail = (salesOrderId: number) => navigate(`/cancellations/${salesOrderId}`);
 
@@ -54,15 +84,7 @@ export default function CancellationsTable() {
       setLoading(true);
       setError(null);
       try {
-        const params: CancellationsParams = {
-          page: p,
-          limit,
-          ...(orderNumber && { orderNumber }),
-          ...(startDate && { startDate }),
-          ...(endDate && { endDate }),
-          ...(user && { user }),
-        };
-        const res = await cancellationsService.getPaginated(params);
+        const res = await cancellationsService.getPaginated(buildParams(p, limit));
         setItems(res.items ?? []);
         setTotalPages(res.totalPages ?? 1);
         setTotalItems(res.totalItems ?? 0);
@@ -74,7 +96,7 @@ export default function CancellationsTable() {
         setLoading(false);
       }
     },
-    [limit, orderNumber, startDate, endDate, user]
+    [buildParams, limit]
   );
 
   useEffect(() => {
@@ -84,6 +106,35 @@ export default function CancellationsTable() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     fetchCancellations(1);
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setError(null);
+
+    try {
+      const rows = await fetchAllPages<CancellationItem>((exportPage, pageSize) =>
+        cancellationsService.getPaginated(buildParams(exportPage, pageSize)),
+      );
+
+      downloadRowsAsXlsx({
+        rows,
+        filename: `cancellations-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: "Cancellations",
+        columns: [
+          { header: "Order #", value: (row) => row.orderNumber },
+          { header: "Order Date", value: (row) => formatDate(row.orderDate) },
+          { header: "Cancelled On", value: (row) => formatDateTime(row.cancellationDate) },
+          { header: "Reason", value: (row) => row.reason },
+          { header: "Type", value: (row) => row.type },
+          { header: "User", value: (row) => row.user },
+        ],
+      });
+    } catch {
+      setError("Failed to export cancellations. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -165,6 +216,14 @@ export default function CancellationsTable() {
           Search
         </button>
       </form>
+
+      <FilteredResultsToolbar
+        filteredCount={totalItems}
+        totalCount={Math.max(overallTotalItems, totalItems)}
+        exporting={exporting}
+        onExport={() => void handleExport()}
+        disabled={loading}
+      />
 
       {/* ── Table ── */}
       <div className="max-w-full overflow-x-auto custom-scrollbar">
