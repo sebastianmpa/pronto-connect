@@ -6,6 +6,7 @@ import CancelOrderModal from "./CancelOrderModal";
 import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
+import type { CustomerHistory } from "../../lib/customers/types";
 
 // The customer status message can contain HTML (e.g. tracking links), so sanitize before rendering.
 function sanitizeHtml(html: string): string {
@@ -22,6 +23,13 @@ function fmt(val: string): string {
 
 function fmtStatusDate(raw?: string | null): string | null {
   return raw ? formatDate(raw) : null;
+}
+
+function fmtHistoryCurrency(value: number): string {
+  return `$${Number(value || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function firstText(...values: unknown[]): string {
@@ -84,9 +92,13 @@ const STEPS = [
 export default function OrderDetailView({
   order,
   onCancelled,
+  purchaseHistory,
+  purchaseHistoryLoading = false,
 }: {
   order: OrderDetailType;
   onCancelled?: () => void;
+  purchaseHistory?: CustomerHistory | null;
+  purchaseHistoryLoading?: boolean;
 }) {
   const cancelModal = useModal();
   const customerInfoModal = useModal();
@@ -352,6 +364,35 @@ export default function OrderDetailView({
                 <p className="text-xs text-gray-400">Shipping: {fmt(order.shipping_addresses[0].cost_inc_tax)}</p>
               </div>
             )}
+          </div>
+
+          {/* Purchase History uses the same customer-detail endpoint/data as Customer Detail. */}
+          <div className="rounded-xl border border-gray-100 p-4 dark:border-white/[0.06]">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Purchase History
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-white/[0.03]">
+                <p className="text-xl font-bold text-gray-800 dark:text-white/90">
+                  {purchaseHistoryLoading
+                    ? "..."
+                    : purchaseHistory
+                      ? purchaseHistory.totalOrders
+                      : "—"}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Orders</p>
+              </div>
+              <div className="rounded-lg bg-gray-50 p-3 text-center dark:bg-white/[0.03]">
+                <p className="text-xl font-bold text-gray-800 dark:text-white/90">
+                  {purchaseHistoryLoading
+                    ? "..."
+                    : purchaseHistory
+                      ? fmtHistoryCurrency(purchaseHistory.totalAmount)
+                      : "—"}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Spent</p>
+              </div>
+            </div>
           </div>
 
           {/* Items stay inside the same two-column order area. */}
