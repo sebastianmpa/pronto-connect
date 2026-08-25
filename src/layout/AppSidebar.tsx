@@ -75,9 +75,7 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Customer Contacts", path: "/customer-contacts" },
       { name: "SMS Logs", path: "/sms-logs" },
-      { name: "SMS Templates", path: "/sms-templates" },
       { name: "Email Logs", path: "/email-logs" },
-      { name: "Email Templates", path: "/email-templates" },
     ],
   },
   {
@@ -220,6 +218,16 @@ const othersItems: NavItem[] = [
     icon: <ListIcon />,
     name: "Contact Reasons",
     path: "/contact-reasons",
+  },
+  {
+    icon: <FilesIcon />,
+    name: "Email Templates",
+    path: "/email-templates",
+  },
+  {
+    icon: <CallIcon />,
+    name: "SMS Templates",
+    path: "/sms-templates",
   },
   {
     icon: <KeyIcon />,

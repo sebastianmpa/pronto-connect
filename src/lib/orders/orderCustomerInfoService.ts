@@ -8,6 +8,9 @@ export interface UpdateCustomerInfoPayload {
   email?: string;
   phone?: string;
   street_1?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
 }
 
 export interface UpdateCustomerInfoResponse {
