@@ -3,9 +3,10 @@ import { Modal } from "../ui/modal";
 import Label from "../form/Label";
 import TextArea from "../form/input/TextArea";
 import Radio from "../form/input/Radio";
+import Select from "../form/Select";
 import cancellationsService from "../../lib/cancellations/cancellationsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
-import type { CreateCancellationResult } from "../../lib/cancellations/types";
+import type { CreateCancellationPayload, CreateCancellationResult } from "../../lib/cancellations/types";
 
 interface CancelOrderModalProps {
   isOpen: boolean;
@@ -27,6 +28,9 @@ export default function CancelOrderModal({
 }: CancelOrderModalProps) {
   const [type, setType] = useState<"Total" | "Partial">("Total");
   const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [reasonsLoading, setReasonsLoading] = useState(true);
   const [selected, setSelected] = useState<Record<number, ItemSelection>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +40,7 @@ export default function CancelOrderModal({
     if (!isOpen) return;
     setType("Total");
     setReason("");
+    setNote("");
     setError(null);
     setResult(null);
     const initial: Record<number, ItemSelection> = {};
@@ -43,6 +48,13 @@ export default function CancelOrderModal({
       initial[item.id] = { checked: true, qty: item.quantity };
     });
     setSelected(initial);
+
+    setReasonsLoading(true);
+    cancellationsService
+      .getReasons()
+      .then(setReasons)
+      .catch(() => setReasons([]))
+      .finally(() => setReasonsLoading(false));
   }, [isOpen, order]);
 
   const toggleItem = (id: number) => {
@@ -55,40 +67,39 @@ export default function CancelOrderModal({
   };
 
   const handleConfirm = async () => {
-    if (!reason.trim()) {
-      setError("Please provide a reason for the cancellation.");
+    if (!reason) {
+      setError("Please select a reason for the cancellation.");
       return;
     }
 
-    const details =
-      type === "Total"
-        ? (order.items ?? []).map((item) => ({
-            PartNumber: item.sku,
-            MFRID: item.raw?.brand ?? "",
-            UnitsToRefund: item.quantity,
-          }))
-        : (order.items ?? [])
-            .filter((item) => selected[item.id]?.checked)
-            .map((item) => ({
-              PartNumber: item.sku,
-              MFRID: item.raw?.brand ?? "",
-              UnitsToRefund: selected[item.id]?.qty ?? item.quantity,
-            }));
+    const payload: CreateCancellationPayload = {
+      OrderID: order.order_number,
+      type,
+      reason,
+      note: note.trim() || undefined,
+    };
 
-    if (type === "Partial" && details.length === 0) {
-      setError("Select at least one item to cancel.");
-      return;
+    if (type === "Partial") {
+      const details = (order.items ?? [])
+        .filter((item) => selected[item.id]?.checked)
+        .map((item) => ({
+          PartNumber: item.sku,
+          MFRID: item.raw?.brand ?? "",
+          UnitsToRefund: selected[item.id]?.qty ?? item.quantity,
+        }));
+
+      if (details.length === 0) {
+        setError("Select at least one item to cancel.");
+        return;
+      }
+
+      payload.details = details;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      const res = await cancellationsService.submit({
-        OrderID: order.order_number,
-        type,
-        reason,
-        details,
-      });
+      const res = await cancellationsService.submit(payload);
       setResult(res);
       onCancelled?.();
     } catch {
@@ -189,11 +200,20 @@ export default function CancelOrderModal({
 
             <div>
               <Label>Reason</Label>
-              <TextArea
-                rows={3}
-                value={reason}
+              <Select
+                options={reasons.map((r) => ({ value: r, label: r }))}
                 onChange={setReason}
-                placeholder="Why is this order being cancelled?"
+                placeholder={reasonsLoading ? "Loading reasons…" : "Select a reason"}
+              />
+            </div>
+
+            <div>
+              <Label>Note (optional)</Label>
+              <TextArea
+                rows={2}
+                value={note}
+                onChange={setNote}
+                placeholder="Any additional context about this cancellation"
               />
             </div>
 

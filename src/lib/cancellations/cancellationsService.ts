@@ -3,6 +3,7 @@ import type {
   CancellationsParams,
   CancellationsResponse,
   CancellationUsersResponse,
+  CancellationReasonsResponse,
   CancellationDetail,
   CreateCancellationPayload,
   CreateCancellationResult,
@@ -31,6 +32,16 @@ const cancellationsService = {
       "/cancellations/atc/v0/users"
     );
     return data.users ?? [];
+  },
+
+  /**
+   * GET /cancellations/atc/v0/reasons
+   */
+  getReasons: async (): Promise<string[]> => {
+    const { data } = await apiClient.get<CancellationReasonsResponse>(
+      "/cancellations/atc/v0/reasons"
+    );
+    return data.reasons ?? [];
   },
 
   /**

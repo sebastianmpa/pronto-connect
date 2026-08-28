@@ -37,6 +37,12 @@ export interface CancellationUsersResponse {
   users: string[];
 }
 
+// ─── Reasons list (for the cancel-order reason dropdown) ───────────────────────
+
+export interface CancellationReasonsResponse {
+  reasons: string[];
+}
+
 // ─── Cancellation detail ───────────────────────────────────────────────────────
 
 export interface CancellationCustomer {
@@ -70,7 +76,9 @@ export interface CreateCancellationPayload {
   OrderID: string;
   type: "Total" | "Partial";
   reason: string;
-  details: CancellationRequestItem[];
+  note?: string;
+  /** Required for Partial cancellations; omitted for Total. */
+  details?: CancellationRequestItem[];
 }
 
 export interface CreateCancellationResult {
