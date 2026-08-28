@@ -6,6 +6,9 @@ import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
 import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
+import RevertCancellationModal, {
+  type RevertCancellationTarget,
+} from "./RevertCancellationModal";
 import partsService from "../../lib/parts/partsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type { CustomerHistory } from "../../lib/customers/types";
@@ -43,6 +46,27 @@ function firstText(...values: unknown[]): string {
   return "";
 }
 
+function normalizeStatus(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function isYes(value: unknown): boolean {
+  return normalizeStatus(value) === "Y";
+}
+
+function isCancelledValue(value: unknown): boolean {
+  const status = normalizeStatus(value);
+  return status === "CANCELLED" || status === "CANCELED";
+}
+
+function isRefundedValue(value: unknown): boolean {
+  return normalizeStatus(value) === "REFUNDED";
+}
+
 function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
   const raw = item.raw ?? {};
 
@@ -72,7 +96,6 @@ function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
     if (sku) {
       const upperBrand = brand.toUpperCase();
       const upperSku = sku.toUpperCase();
-
       mpn =
         brand && upperSku.startsWith(`${upperBrand} `)
           ? sku.slice(brand.length).trim()
@@ -81,6 +104,26 @@ function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
   }
 
   return { brand, mpn };
+}
+
+function resolveItemStatus(item: OrderDetailType["items"][number]): string {
+  if (isYes(item.refunded)) return "refunded";
+  if (isYes(item.cancelled)) return "cancelled";
+  return firstText(item.item_status, "-");
+}
+
+function itemStatusClasses(status: string): string {
+  const normalized = normalizeStatus(status);
+
+  if (normalized === "REFUNDED") {
+    return "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400";
+  }
+
+  if (normalized === "CANCELLED" || normalized === "CANCELED") {
+    return "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400";
+  }
+
+  return "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400";
 }
 
 const STEPS = [
@@ -107,17 +150,52 @@ export default function OrderDetailView({
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [revertTarget, setRevertTarget] = useState<RevertCancellationTarget | null>(null);
+
   // The visible customer-service status must come from customer_service_status.status.
   // status_text/business_status can represent a different order/business status.
   const customerServiceStatus = firstText(
     order.customer_service_status?.status,
     order.status_text,
   );
+
   const isCancelledStatus = /cancel/i.test(customerServiceStatus);
   const isAlreadyCancelled =
     isCancelledStatus ||
     /cancel/i.test(order.status_text ?? "") ||
     /cancel/i.test(order.business_status?.name ?? "");
+
+  // Revert actions are not allowed once the order is ON THE WAY or DELIVERED.
+  // Check all status fields exposed by the order API so differences in naming do
+  // not accidentally make the button available.
+  const orderStatusCandidates = [
+    order.customer_service_status?.status,
+    order.customer_service_status?.order_status_internal_name,
+    order.status_text,
+    order.business_status?.name,
+    order.header?.status,
+  ];
+
+  const revertBlockedByOrderStatus = orderStatusCandidates.some((value) => {
+    const normalized = normalizeStatus(value);
+    return normalized === "ON THE WAY" || normalized === "DELIVERED";
+  });
+
+  // Total revert is available only while the cancellation has NOT been
+  // processed/refunded in BigCommerce. Once refunded=Y, the backend will
+  // reject the reversal, so the UI must not offer the action.
+  const orderIsCancelled =
+    isYes(order.cancelled) ||
+    orderStatusCandidates.some((value) => isCancelledValue(value));
+
+  const orderIsRefunded =
+    isYes(order.refunded) ||
+    orderStatusCandidates.some((value) => isRefundedValue(value));
+
+  const showOrderRevert =
+    orderIsCancelled &&
+    !orderIsRefunded &&
+    !revertBlockedByOrderStatus;
 
   const storeId =
     order.storeid ??
@@ -159,8 +237,10 @@ export default function OrderDetailView({
             brand,
             mpn,
           });
+
           const rawTotal = detail.total_invoices as unknown;
           const parsed = Number(rawTotal);
+
           return [
             item.id,
             rawTotal !== null && rawTotal !== undefined && Number.isFinite(parsed)
@@ -198,6 +278,27 @@ export default function OrderDetailView({
     );
   };
 
+  const openOrderRevert = () => {
+    setRevertTarget({ type: "Total" });
+  };
+
+  const openItemRevert = (item: OrderDetailType["items"][number]) => {
+    const { brand, mpn } = resolvePartDetailInfo(item);
+    const itemStatus = resolveItemStatus(item);
+
+    setRevertTarget({
+      type: "Partial",
+      brand,
+      mpn,
+      itemName: item.name,
+      itemStatus,
+    });
+  };
+
+  const closeRevertModal = () => {
+    setRevertTarget(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -211,10 +312,12 @@ export default function OrderDetailView({
             <span className="capitalize">{order.source}</span>
           </p>
         </div>
+
         <div className="flex flex-col items-end gap-2">
           <span className="inline-flex items-center self-start rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
             {customerServiceStatus}
           </span>
+
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
@@ -223,13 +326,24 @@ export default function OrderDetailView({
             >
               Change customer&apos;s Info
             </button>
+
             {!isAlreadyCancelled && (
               <button
                 type="button"
                 onClick={cancelModal.openModal}
-                className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10 transition-colors"
+                className="rounded-lg border border-error-300 px-3 py-1.5 text-xs font-medium text-error-600 transition-colors hover:bg-error-50 dark:border-error-500/30 dark:text-error-400 dark:hover:bg-error-500/10"
               >
                 Cancel Order
+              </button>
+            )}
+
+            {showOrderRevert && (
+              <button
+                type="button"
+                onClick={openOrderRevert}
+                className="rounded-lg border border-success-300 bg-success-50 px-3 py-1.5 text-xs font-medium text-success-700 transition-colors hover:bg-success-100 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20"
+              >
+                Revert cancellation
               </button>
             )}
           </div>
@@ -250,6 +364,14 @@ export default function OrderDetailView({
         onUpdated={onCancelled}
       />
 
+      <RevertCancellationModal
+        isOpen={revertTarget !== null}
+        onClose={closeRevertModal}
+        orderNumber={order.order_number}
+        target={revertTarget}
+        onReverted={onCancelled}
+      />
+
       {/* Progress stepper */}
       {order.customer_service_status && (
         <div>
@@ -258,16 +380,15 @@ export default function OrderDetailView({
               const currentIndex = (order.customer_service_status?.step ?? 0) - 1;
               const completed = i < currentIndex;
               const current = i === currentIndex;
+
               // The API status replaces the predefined label only on the active step.
               // Example: step=2 + status="PICKING" => circle 2 displays PICKING,
               // while the remaining circles keep their predefined labels.
               const displayLabel = current && customerServiceStatus ? customerServiceStatus : label;
-              // The segment right before this circle is "done" once the previous circle is completed.
+
               const segmentBeforeDone = i > 0 && i - 1 < currentIndex;
-              // The segment right after this circle is "done" once this circle itself is completed.
               const segmentAfterDone = completed;
-              // Step 1 always keeps the order's own date; other steps show "Done" once passed,
-              // or the status date from the API while they're the current step.
+
               const stepDate =
                 i === 0
                   ? fmtStatusDate(order.header?.date_created)
@@ -276,23 +397,26 @@ export default function OrderDetailView({
                     : current
                       ? fmtStatusDate(order.customer_service_status?.date)
                       : null;
+
               return (
                 <div key={label} className="flex flex-1 flex-col items-center">
                   <div className="relative flex h-9 w-full items-center justify-center">
                     {i > 0 && (
                       <div
-                        className={`absolute top-1/2 left-0 h-1 w-1/2 -translate-y-1/2 rounded-full ${
+                        className={`absolute left-0 top-1/2 h-1 w-1/2 -translate-y-1/2 rounded-full ${
                           segmentBeforeDone ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
                         }`}
                       />
                     )}
+
                     {i < STEPS.length - 1 && (
                       <div
-                        className={`absolute top-1/2 right-0 h-1 w-1/2 -translate-y-1/2 rounded-full ${
+                        className={`absolute right-0 top-1/2 h-1 w-1/2 -translate-y-1/2 rounded-full ${
                           segmentAfterDone ? "bg-green-500" : "bg-gray-200 dark:bg-gray-700"
                         }`}
                       />
                     )}
+
                     <div
                       className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
                         current && isCancelledStatus
@@ -324,21 +448,23 @@ export default function OrderDetailView({
                       )}
                     </div>
                   </div>
+
                   <span
-                    className={`mt-1.5 text-xs text-center ${
+                    className={`mt-1.5 text-center text-xs ${
                       current && isCancelledStatus
                         ? "font-semibold text-red-600 dark:text-red-400"
                         : completed
-                          ? "text-green-600 dark:text-green-400 font-medium"
+                          ? "font-medium text-green-600 dark:text-green-400"
                           : current
-                            ? "text-blue-600 dark:text-blue-400 font-medium"
+                            ? "font-medium text-blue-600 dark:text-blue-400"
                             : "text-gray-400"
                     }`}
                   >
                     {displayLabel}
                   </span>
+
                   {stepDate && (
-                    <span className="text-[11px] text-center text-gray-600 dark:text-gray-400">
+                    <span className="text-center text-[11px] text-gray-600 dark:text-gray-400">
                       {stepDate}
                     </span>
                   )}
@@ -346,6 +472,7 @@ export default function OrderDetailView({
               );
             })}
           </div>
+
           {(order.customer_service_status.customer_message || fmtStatusDate(order.customer_service_status.date)) && (
             <div className="mt-3 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 [&_a]:font-semibold [&_a]:underline">
               {order.customer_service_status.customer_message && (
@@ -355,8 +482,15 @@ export default function OrderDetailView({
                   }}
                 />
               )}
+
               {fmtStatusDate(order.customer_service_status.date) && (
-                <p className={order.customer_service_status.customer_message ? "mt-1 text-xs opacity-80" : "text-xs opacity-80"}>
+                <p
+                  className={
+                    order.customer_service_status.customer_message
+                      ? "mt-1 text-xs opacity-80"
+                      : "text-xs opacity-80"
+                  }
+                >
                   Status date: {fmtStatusDate(order.customer_service_status.date)}
                 </p>
               )}
@@ -460,6 +594,7 @@ export default function OrderDetailView({
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 Items ({order.header?.items_total ?? order.items.length})
               </p>
+
               <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/[0.06]">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 dark:bg-white/[0.03]">
@@ -474,48 +609,89 @@ export default function OrderDetailView({
                       <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Dtl.</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                    {order.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {item.url_thumbnail && (
-                              <img
-                                src={item.url_thumbnail}
-                                alt={item.name}
-                                className="h-10 w-10 rounded-lg border border-gray-100 bg-white object-contain dark:border-white/[0.06]"
-                              />
-                            )}
-                            <span className="max-w-xs break-words font-medium text-gray-800 dark:text-white/90">
-                              {item.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-500 dark:text-gray-400">{item.sku}</td>
-                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.quantity}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{fmt(item.unit_price)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium capitalize text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400">
-                            {String(item.item_status ?? "-").toLowerCase()}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">
-                          {totalInvoicesByItem[item.id] === undefined
-                            ? "..."
-                            : totalInvoicesByItem[item.id] ?? "â€”"}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {(() => {
-                            const { brand, mpn } = resolvePartDetailInfo(item);
-                            const canOpenPartDetail =
-                              Boolean(brand) &&
-                              Boolean(mpn) &&
-                              storeId !== null &&
-                              storeId !== undefined &&
-                              String(storeId).trim() !== "";
 
-                            return canOpenPartDetail ? (
+                  <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+                    {order.items.map((item) => {
+                      const itemStatus = resolveItemStatus(item);
+
+                      const itemIsCancelled =
+                        isYes(item.cancelled) ||
+                        isCancelledValue(itemStatus);
+
+                      const itemIsRefunded =
+                        isYes(item.refunded) ||
+                        isRefundedValue(itemStatus);
+
+                      const showItemRevert =
+                        itemIsCancelled &&
+                        !itemIsRefunded &&
+                        !revertBlockedByOrderStatus;
+
+                      const { brand, mpn } = resolvePartDetailInfo(item);
+                      const hasRevertIdentifiers = Boolean(brand && mpn);
+                      const canOpenPartDetail =
+                        Boolean(brand) &&
+                        Boolean(mpn) &&
+                        storeId !== null &&
+                        storeId !== undefined &&
+                        String(storeId).trim() !== "";
+
+                      return (
+                        <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              {item.url_thumbnail && (
+                                <img
+                                  src={item.url_thumbnail}
+                                  alt={item.name}
+                                  className="h-10 w-10 rounded-lg border border-gray-100 bg-white object-contain dark:border-white/[0.06]"
+                                />
+                              )}
+                              <span className="max-w-xs break-words font-medium text-gray-800 dark:text-white/90">
+                                {item.name}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="whitespace-nowrap px-4 py-3 text-gray-500 dark:text-gray-400">{item.sku}</td>
+                          <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.quantity}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{fmt(item.unit_price)}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
+
+                          <td className="px-4 py-3 text-center">
+                            <div className="flex flex-col items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${itemStatusClasses(itemStatus)}`}
+                              >
+                                {itemStatus.toLowerCase()}
+                              </span>
+
+                              {showItemRevert && (
+                                <button
+                                  type="button"
+                                  onClick={() => openItemRevert(item)}
+                                  disabled={!hasRevertIdentifiers}
+                                  title={
+                                    hasRevertIdentifiers
+                                      ? `Revert cancellation: ${brand} ${mpn}`
+                                      : "Brand or MPN is not available for this item"
+                                  }
+                                  className="rounded-lg border border-success-300 bg-success-50 px-2.5 py-1 text-[11px] font-semibold text-success-700 transition-colors hover:bg-success-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20"
+                                >
+                                  Revert
+                                </button>
+                              )}
+                            </div>
+                          </td>
+
+                          <td className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">
+                            {totalInvoicesByItem[item.id] === undefined
+                              ? "..."
+                              : totalInvoicesByItem[item.id] ?? "—"}
+                          </td>
+
+                          <td className="px-3 py-3 text-center">
+                            {canOpenPartDetail ? (
                               <button
                                 type="button"
                                 onClick={() => openPartDetail(item)}
@@ -541,11 +717,11 @@ export default function OrderDetailView({
                               >
                                 -
                               </span>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    ))}
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

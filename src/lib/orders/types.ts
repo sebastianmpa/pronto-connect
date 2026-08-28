@@ -12,7 +12,6 @@ export interface OrdersSearchParams {
 }
 
 // ─── Single order item ────────────────────────────────────────────────────────
-
 export interface OrderItem {
   salesOrderId: string | null;
   orderDate: string;
@@ -33,7 +32,6 @@ export interface OrdersResponse {
 }
 
 // ─── Order detail ─────────────────────────────────────────────────────────────
-
 export interface OrderDetailItem {
   id: number;
   product_id: number;
@@ -45,6 +43,8 @@ export interface OrderDetailItem {
   url_thumbnail: string;
   quantity: number;
   item_status: string;
+  cancelled?: string | null;
+  refunded?: string | null;
   unit_price: string;
   total_price: string;
   raw?: {
@@ -58,7 +58,6 @@ export interface OrderDetailItem {
     [key: string]: unknown;
   };
 }
-
 export interface BillingAddress {
   first_name: string;
   last_name: string;
@@ -72,7 +71,6 @@ export interface BillingAddress {
   phone: string;
   email: string;
 }
-
 export interface ShippingAddress {
   id: number;
   first_name: string;
@@ -88,7 +86,6 @@ export interface ShippingAddress {
   shipping_method: string;
   cost_inc_tax: string;
 }
-
 export interface OrderHeader {
   id: number;
   customer_id: number;
@@ -109,7 +106,6 @@ export interface OrderHeader {
   order_source: string;
   currency_code: string;
 }
-
 export interface CustomerServiceStatus {
   status: string;
   order_status_internal_name: string;
@@ -130,7 +126,6 @@ export interface OrderAtcForm {
   created_at: string;
   updated_at: string | null;
 }
-
 export interface OrderCancellation {
   salesOrderId: number | string;
   orderNumber: string;
@@ -139,7 +134,6 @@ export interface OrderCancellation {
   reason: string | null;
   type: string | null;
 }
-
 export interface OrderContactRequest {
   id: number;
   order_id: number | string;
@@ -154,7 +148,6 @@ export interface OrderContactRequest {
   contact_user?: string | null;
   date?: string | null;
 }
-
 export interface OrderCustomerContact {
   id: number;
   order_id: number | string;
@@ -173,7 +166,6 @@ export interface OrderCustomerContact {
   text_messages: number;
   contact_user?: string | null;
 }
-
 export interface OrderSmsLog {
   id: number;
   order_number: string;
@@ -194,7 +186,6 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
-
 export interface OrderStore {
   description: string;
   url: string;
@@ -206,7 +197,6 @@ export interface OrderStore {
   id?: number | string | null;
   storeid?: number | string | null;
   store_id?: number | string | null;
-
   // Invoice configuration returned by the order API. Its exact inner shape is
   // intentionally left open so the PDF can consume the backend value without
   // forcing a frontend-only schema.
@@ -220,7 +210,6 @@ export interface OrderStore {
   zip?: string | null;
   country?: string | null;
   email?: string | null;
-
   [key: string]: unknown;
 }
 
@@ -230,6 +219,8 @@ export interface OrderDetail {
   store?: OrderStore | null;
   source: string;
   status_text: string;
+  cancelled?: string | null;
+  refunded?: string | null;
   business_status: { name: string } | null;
   customer_service_status: CustomerServiceStatus | null;
   cancellation_request: unknown | null;
@@ -237,7 +228,6 @@ export interface OrderDetail {
   items: OrderDetailItem[];
   shipping_addresses: ShippingAddress[];
   shipments: unknown[];
-
   // The order detail endpoint now includes the most recent ATC/client activity.
   atc_forms?: OrderAtcForm[];
   cancellations?: OrderCancellation[];
@@ -245,4 +235,22 @@ export interface OrderDetail {
   customer_contacts?: OrderCustomerContact[];
   sms_logs?: OrderSmsLog[];
   email_logs?: OrderEmailLog[];
+}
+
+// ─── Revert cancellation ──────────────────────────────────────────────────────
+
+export type RevertCancellationPayload =
+  | {
+      type: "Total";
+    }
+  | {
+      type: "Partial";
+      brand: string;
+      mpn: string;
+    };
+
+export interface RevertCancellationResponse {
+  success?: boolean;
+  message?: string;
+  [key: string]: unknown;
 }
