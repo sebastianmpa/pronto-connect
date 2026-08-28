@@ -19,11 +19,31 @@ function money(value: unknown): string {
   return Number.isFinite(parsed) ? `$${parsed.toFixed(2)}` : displayValue(value);
 }
 
+function normalizeColumnKey(key: string): string {
+  return key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
 function humanizeKey(key: string): string {
+  if (normalizeColumnKey(key) === "purchaseorderid") {
+    return "PO #";
+  }
+
   return key
     .replace(/_/g, " ")
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function orderColumns(columns: string[]): string[] {
+  return [...columns].sort((a, b) => {
+    const aIsPo = normalizeColumnKey(a) === "purchaseorderid";
+    const bIsPo = normalizeColumnKey(b) === "purchaseorderid";
+
+    if (aIsPo && !bIsPo) return -1;
+    if (!aIsPo && bIsPo) return 1;
+
+    return 0;
+  });
 }
 
 function DynamicRowsTable({
@@ -35,11 +55,13 @@ function DynamicRowsTable({
 }) {
   const columns = useMemo(
     () =>
-      Array.from(
-        rows.reduce<Set<string>>((set, row) => {
-          Object.keys(row).forEach((key) => set.add(key));
-          return set;
-        }, new Set<string>()),
+      orderColumns(
+        Array.from(
+          rows.reduce<Set<string>>((set, row) => {
+            Object.keys(row).forEach((key) => set.add(key));
+            return set;
+          }, new Set<string>()),
+        ),
       ),
     [rows],
   );

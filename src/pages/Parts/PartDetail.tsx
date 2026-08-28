@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PartDetailView from "../../components/parts/PartDetailView";
@@ -11,11 +16,13 @@ export default function PartDetail() {
     mfr: string;
     partNumber: string;
   }>();
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
 
   const locationId = searchParams.get("locationid") ?? "";
+  const po = searchParams.get("po") ?? "";
   const backTo = (location.state as { from?: string } | null)?.from ?? "/parts";
 
   const [part, setPart] = useState<PartDetailResponse | null>(null);
@@ -25,7 +32,9 @@ export default function PartDetail() {
   useEffect(() => {
     if (!mfr || !partNumber || !locationId) {
       setLoading(false);
-      setError("Missing MFR, Part Number or Location ID. Return to Parts and run the search again.");
+      setError(
+        "Missing MFR, Part Number or Location ID. Return to Parts and run the lookup again.",
+      );
       return;
     }
 
@@ -33,11 +42,19 @@ export default function PartDetail() {
     setError(null);
 
     partsService
-      .getDetail({ mfr, partNumber, locationId })
+      .getDetail({
+        mfr,
+        partNumber,
+        locationId,
+        po: po || undefined,
+      })
       .then(setPart)
-      .catch(() => setError("Could not load part details. Please try again."))
+      .catch(() => {
+        setPart(null);
+        setError("Could not load part details. Please try again.");
+      })
       .finally(() => setLoading(false));
-  }, [mfr, partNumber, locationId]);
+  }, [mfr, partNumber, locationId, po]);
 
   return (
     <>
@@ -97,7 +114,7 @@ export default function PartDetail() {
         )}
 
         {!loading && !error && part && (
-          <PartDetailView part={part} locationId={locationId} />
+          <PartDetailView part={part} locationId={locationId} po={po} />
         )}
       </div>
     </>

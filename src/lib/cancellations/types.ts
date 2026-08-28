@@ -19,6 +19,7 @@ export interface CancellationItem {
   reason: string;
   type: string; // "Total" | "Partial"
   user: string;
+  refundedprice?: number | string | null;
 }
 
 // ─── Paginated response ────────────────────────────────────────────────────────

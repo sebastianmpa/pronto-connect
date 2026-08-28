@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import DOMPurify from "dompurify";
 import { useLocation, useNavigate } from "react-router";
 import { useModal } from "../../hooks/useModal";
@@ -5,6 +6,7 @@ import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
 import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
+import partsService from "../../lib/parts/partsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type { CustomerHistory } from "../../lib/customers/types";
 
@@ -123,6 +125,63 @@ export default function OrderDetailView({
     order.store?.storeid ??
     order.store?.store_id ??
     null;
+
+  const [totalInvoicesByItem, setTotalInvoicesByItem] = useState<Record<number, number | null>>({});
+
+  useEffect(() => {
+    let active = true;
+
+    if (
+      storeId === null ||
+      storeId === undefined ||
+      String(storeId).trim() === "" ||
+      !order.items?.length
+    ) {
+      setTotalInvoicesByItem({});
+      return () => {
+        active = false;
+      };
+    }
+
+    setTotalInvoicesByItem({});
+
+    Promise.all(
+      order.items.map(async (item) => {
+        const { brand, mpn } = resolvePartDetailInfo(item);
+
+        if (!brand || !mpn) {
+          return [item.id, null] as const;
+        }
+
+        try {
+          const detail = await partsService.getDetailBc({
+            storeId: String(storeId),
+            brand,
+            mpn,
+          });
+          const rawTotal = detail.total_invoices as unknown;
+          const parsed = Number(rawTotal);
+          return [
+            item.id,
+            rawTotal !== null && rawTotal !== undefined && Number.isFinite(parsed)
+              ? parsed
+              : null,
+          ] as const;
+        } catch {
+          return [item.id, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (!active) return;
+      setTotalInvoicesByItem(
+        Object.fromEntries(entries) as Record<number, number | null>,
+      );
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [order.items, storeId]);
 
   const openPartDetail = (item: OrderDetailType["items"][number]) => {
     const { brand, mpn } = resolvePartDetailInfo(item);
@@ -411,6 +470,7 @@ export default function OrderDetailView({
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Unit</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th>
+                      <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Total Invoices</th>
                       <th className="px-3 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Dtl.</th>
                     </tr>
                   </thead>
@@ -439,6 +499,11 @@ export default function OrderDetailView({
                           <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium capitalize text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400">
                             {String(item.item_status ?? "-").toLowerCase()}
                           </span>
+                        </td>
+                        <td className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">
+                          {totalInvoicesByItem[item.id] === undefined
+                            ? "..."
+                            : totalInvoicesByItem[item.id] ?? "â€”"}
                         </td>
                         <td className="px-3 py-3 text-center">
                           {(() => {

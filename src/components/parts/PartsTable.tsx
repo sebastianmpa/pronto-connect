@@ -79,6 +79,7 @@ export default function PartsTable() {
   const navigate = useNavigate();
 
   const [sku, setSku] = useState("");
+  const [po, setPo] = useState("");
   const [results, setResults] = useState<PartLookupItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -123,6 +124,7 @@ export default function PartsTable() {
 
   const handleClear = () => {
     setSku("");
+    setPo("");
     setResults([]);
     setTotal(0);
     setError(null);
@@ -130,29 +132,33 @@ export default function PartsTable() {
   };
 
   const openDetail = (part: PartLookupItem) => {
-    const locationId = part.stock?.location_id;
+    const rawLocationId = part.stock?.location_id;
 
     if (
-      locationId === null ||
-      locationId === undefined ||
-      locationId === ""
+      rawLocationId === null ||
+      rawLocationId === undefined ||
+      rawLocationId === ""
     ) {
       return;
     }
 
-    // IDEAL location 0 must open Part Detail using location 4.
-    // The list keeps showing the original location value (0); only the detail
-    // request is remapped.
-    const detailLocationId = Number(locationId) === 0 ? 4 : locationId;
+    // Requirement already applied in Parts: if lookup returns location 0,
+    // the detail endpoint must be queried using location 4.
+    const detailLocationId = String(rawLocationId) === "0" ? "4" : String(rawLocationId);
 
     const query = new URLSearchParams({
-      locationid: String(detailLocationId),
-    }).toString();
+      locationid: detailLocationId,
+    });
+
+    const cleanPo = po.trim();
+    if (cleanPo) {
+      query.set("po", cleanPo);
+    }
 
     navigate(
       `/parts/${encodeURIComponent(part.mfr)}/${encodeURIComponent(
         part.partnumber,
-      )}?${query}`,
+      )}?${query.toString()}`,
       { state: { from: "/parts" } },
     );
   };
@@ -173,6 +179,20 @@ export default function PartsTable() {
             value={sku}
             onChange={(event) => setSku(event.target.value)}
             placeholder="795633"
+            className={inputClass}
+          />
+        </div>
+
+        <div className="w-full md:max-w-xs">
+          <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            PO # <span className="font-normal text-gray-400">(optional)</span>
+          </label>
+
+          <input
+            type="text"
+            value={po}
+            onChange={(event) => setPo(event.target.value)}
+            placeholder="PO number"
             className={inputClass}
           />
         </div>
