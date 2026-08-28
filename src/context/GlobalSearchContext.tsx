@@ -5,13 +5,14 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import axios from "axios";
 import globalSearchService from "../lib/globalSearch/globalSearchService";
 import type { GlobalSearchResponse } from "../lib/globalSearch/types";
 
 const MIN_QUERY_LENGTH = 3;
 const DEBOUNCE_MS = 400;
+const SEARCH_PARAM = "gsearch";
 
 type GlobalSearchContextType = {
   query: string;
@@ -39,19 +40,41 @@ export const useGlobalSearch = () => {
 export const GlobalSearchProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [query, setQuery] = useState("");
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Seed from the URL so a shared/refreshed link restores the active search.
+  const [query, setQueryState] = useState(() => searchParams.get(SEARCH_PARAM) ?? "");
   const [result, setResult] = useState<GlobalSearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const location = useLocation();
   const prevPathRef = useRef(location.pathname);
+
+  // Keep the query in sync with the URL (replace, not push, so every keystroke
+  // doesn't spam browser history) so the address bar always reflects what's
+  // actively being searched.
+  const setQuery = (next: string) => {
+    setQueryState(next);
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        if (next.trim()) {
+          params.set(SEARCH_PARAM, next);
+        } else {
+          params.delete(SEARCH_PARAM);
+        }
+        return params;
+      },
+      { replace: true },
+    );
+  };
 
   // Navigating away (nav link, "Open full page", etc.) drops back to the normal page.
   useEffect(() => {
     if (prevPathRef.current !== location.pathname) {
       prevPathRef.current = location.pathname;
-      setQuery("");
+      setQueryState("");
     }
   }, [location.pathname]);
 
