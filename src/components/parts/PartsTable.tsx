@@ -79,7 +79,6 @@ export default function PartsTable() {
   const navigate = useNavigate();
 
   const [sku, setSku] = useState("");
-  const [po, setPo] = useState("");
   const [results, setResults] = useState<PartLookupItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -124,7 +123,6 @@ export default function PartsTable() {
 
   const handleClear = () => {
     setSku("");
-    setPo("");
     setResults([]);
     setTotal(0);
     setError(null);
@@ -150,11 +148,6 @@ export default function PartsTable() {
       locationid: detailLocationId,
     });
 
-    const cleanPo = po.trim();
-    if (cleanPo) {
-      query.set("po", cleanPo);
-    }
-
     navigate(
       `/parts/${encodeURIComponent(part.mfr)}/${encodeURIComponent(
         part.partnumber,
@@ -179,20 +172,6 @@ export default function PartsTable() {
             value={sku}
             onChange={(event) => setSku(event.target.value)}
             placeholder="795633"
-            className={inputClass}
-          />
-        </div>
-
-        <div className="w-full md:max-w-xs">
-          <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            PO # <span className="font-normal text-gray-400">(optional)</span>
-          </label>
-
-          <input
-            type="text"
-            value={po}
-            onChange={(event) => setPo(event.target.value)}
-            placeholder="PO number"
             className={inputClass}
           />
         </div>
