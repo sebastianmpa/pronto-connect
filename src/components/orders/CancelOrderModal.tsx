@@ -45,7 +45,7 @@ export default function CancelOrderModal({
     setResult(null);
     const initial: Record<number, ItemSelection> = {};
     (order.items ?? []).forEach((item) => {
-      initial[item.id] = { checked: true, qty: item.quantity };
+      initial[item.id] = { checked: false, qty: item.quantity };
     });
     setSelected(initial);
 
