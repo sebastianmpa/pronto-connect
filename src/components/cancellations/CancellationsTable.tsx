@@ -27,6 +27,20 @@ const EyeIcon = () => (
 const inputCls =
   "h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30";
 
+function formatRefundedPrice(value: CancellationItem["refundedprice"]): string {
+  if (value === null || value === undefined || value === "") return "—";
+
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "—";
+
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function CancellationsTable() {
@@ -128,6 +142,7 @@ export default function CancellationsTable() {
           { header: "Reason", value: (row) => row.reason },
           { header: "Type", value: (row) => row.type },
           { header: "User", value: (row) => row.user },
+          { header: "Amount", value: (row) => formatRefundedPrice(row.refundedprice) },
         ],
       });
     } catch {
@@ -244,7 +259,7 @@ export default function CancellationsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order #", "Order Date", "Cancelled On", "Reason", "Type", "User", ""].map((label) => (
+                {["Order #", "Order Date", "Cancelled On", "Reason", "Type", "User", "Amount", ""].map((label) => (
                   <TableCell
                     key={label}
                     isHeader
@@ -258,7 +273,7 @@ export default function CancellationsTable() {
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     No cancellations found for the selected filters.
                   </td>
                 </TableRow>
@@ -290,6 +305,9 @@ export default function CancellationsTable() {
                     </TableCell>
                     <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">
                       {item.user}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 border border-gray-100 dark:border-white/[0.05] text-theme-sm font-medium text-gray-800 dark:text-white/90 whitespace-nowrap">
+                      {formatRefundedPrice(item.refundedprice)}
                     </TableCell>
                     <TableCell className="px-3 py-3 border border-gray-100 dark:border-white/[0.05] text-center">
                       <button

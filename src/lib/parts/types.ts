@@ -2,6 +2,7 @@ export interface PartDetailParams {
   mfr: string;
   partNumber: string;
   locationId: number | string;
+  po?: string;
 }
 
 export interface PartLookupParams {
@@ -144,6 +145,14 @@ export interface PartDetailLinks {
   [key: string]: unknown;
 }
 
+export interface PartTracking {
+  number?: string | null;
+  url?: string | null;
+  status?: string | null;
+  eta?: string | null;
+  carrier?: string | null;
+}
+
 /**
  * Current response from:
  * GET /api/parts/detail?mfr=...&partnumber=...&locationid=...
@@ -159,6 +168,7 @@ export interface PartDetailResponse {
   eta?: string | null;
   treatment?: string | null;
   links?: PartDetailLinks | null;
+  tracking?: PartTracking | null;
   [key: string]: unknown;
 }
 
@@ -169,5 +179,6 @@ export interface PartDetailResponse {
 export interface PartDetailBcResponse extends PartDetailResponse {
   brand: string;
   mpn: string;
+  total_invoices?: number | string | null;
   suppliers?: PartDynamicRow[];
 }

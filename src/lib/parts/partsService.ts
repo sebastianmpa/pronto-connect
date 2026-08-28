@@ -90,6 +90,8 @@ const partsService = {
   async getDetail(params: PartDetailParams): Promise<PartDetailResponse> {
     assertIdealConfiguration();
 
+    const cleanPo = params.po?.trim();
+
     const response = await idealApiClient.get<PartDetailResponse>(
       "/api/parts/detail",
       {
@@ -97,6 +99,7 @@ const partsService = {
           mfr: params.mfr.trim(),
           partnumber: params.partNumber.trim(),
           locationid: params.locationId,
+          ...(cleanPo ? { po: cleanPo } : {}),
         },
       },
     );
