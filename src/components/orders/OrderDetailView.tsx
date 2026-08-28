@@ -160,10 +160,20 @@ export default function OrderDetailView({
   );
 
   const isCancelledStatus = /cancel/i.test(customerServiceStatus);
+
+  // The order's own status text is not reliable on its own — some orders sit in an
+  // intermediate status (e.g. "ON HOLD") after a Total cancellation is logged, without
+  // the status wording ever saying "cancel". The cancellations activity list is the
+  // source of truth: any Total record means the order has already been cancelled.
+  const hasTotalCancellationRecord = (order.cancellations ?? []).some(
+    (cancellation) => normalizeStatus(cancellation.type) === "TOTAL",
+  );
+
   const isAlreadyCancelled =
     isCancelledStatus ||
     /cancel/i.test(order.status_text ?? "") ||
-    /cancel/i.test(order.business_status?.name ?? "");
+    /cancel/i.test(order.business_status?.name ?? "") ||
+    hasTotalCancellationRecord;
 
   // Revert actions are not allowed once the order is ON THE WAY or DELIVERED.
   // Check all status fields exposed by the order API so differences in naming do
@@ -186,7 +196,8 @@ export default function OrderDetailView({
   // reject the reversal, so the UI must not offer the action.
   const orderIsCancelled =
     isYes(order.cancelled) ||
-    orderStatusCandidates.some((value) => isCancelledValue(value));
+    orderStatusCandidates.some((value) => isCancelledValue(value)) ||
+    hasTotalCancellationRecord;
 
   const orderIsRefunded =
     isYes(order.refunded) ||
@@ -327,7 +338,7 @@ export default function OrderDetailView({
               Change customer&apos;s Info
             </button>
 
-            {!isAlreadyCancelled && (
+            {!isAlreadyCancelled && !revertBlockedByOrderStatus && (
               <button
                 type="button"
                 onClick={cancelModal.openModal}
