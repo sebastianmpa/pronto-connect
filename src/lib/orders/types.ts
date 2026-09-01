@@ -42,6 +42,8 @@ export interface OrderDetailItem {
   name: string;
   url_thumbnail: string;
   quantity: number;
+  ALLOC?: number | string | null;
+  BO?: number | string | null;
   item_status: string;
   cancelled?: string | null;
   refunded?: string | null;
@@ -186,6 +188,18 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
+
+export interface OrderIdealInfo {
+  order_id: number | string | null;
+  notes: string | null;
+  is_hold: boolean;
+  hold_reason: string | null;
+}
+
+export interface OrderBigCommerceInfo {
+  customer_note: string | null;
+}
+
 export interface OrderStore {
   description: string;
   url: string;
@@ -228,6 +242,8 @@ export interface OrderDetail {
   items: OrderDetailItem[];
   shipping_addresses: ShippingAddress[];
   shipments: unknown[];
+  ideal?: OrderIdealInfo | null;
+  bigcommerce?: OrderBigCommerceInfo | null;
   // The order detail endpoint now includes the most recent ATC/client activity.
   atc_forms?: OrderAtcForm[];
   cancellations?: OrderCancellation[];
@@ -254,3 +270,14 @@ export interface RevertCancellationResponse {
   message?: string;
   [key: string]: unknown;
 }
+
+// ─── Order notes ──────────────────────────────────────────────────────────────
+
+export interface AddOrderNoteResponse {
+  success?: boolean;
+  order_number?: string;
+  ideal?: OrderIdealInfo | null;
+  message?: string;
+  [key: string]: unknown;
+}
+

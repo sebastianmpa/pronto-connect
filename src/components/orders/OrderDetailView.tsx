@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
 import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
+import OrderNotesPanel from "./OrderNotesPanel";
 import partsService from "../../lib/parts/partsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type { CustomerHistory } from "../../lib/customers/types";
@@ -507,6 +508,8 @@ export default function OrderDetailView({
                       <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Product</th>
                       <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">SKU</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Qty</th>
+                      <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">ALLOC</th>
+                      <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">BO</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Unit</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th>
@@ -533,6 +536,8 @@ export default function OrderDetailView({
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-gray-500 dark:text-gray-400">{item.sku}</td>
                         <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.quantity}</td>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.ALLOC ?? "—"}</td>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.BO ?? "—"}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{fmt(item.unit_price)}</td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
                         <td className="px-4 py-3 text-center">
@@ -614,8 +619,14 @@ export default function OrderDetailView({
           )}
         </div>
 
-        {/* Activity occupies only the remaining third and scrolls internally. */}
-        <div className="min-w-0 xl:col-span-1 xl:self-start">
+        {/* Notes and activity occupy the remaining third. */}
+        <div className="min-w-0 space-y-5 xl:col-span-1 xl:self-start">
+          <OrderNotesPanel
+            orderNumber={order.order_number}
+            ideal={order.ideal}
+            bigcommerce={order.bigcommerce}
+          />
+
           <OrderClientRequestsPanel
             atcForms={order.atc_forms}
             cancellations={order.cancellations}
