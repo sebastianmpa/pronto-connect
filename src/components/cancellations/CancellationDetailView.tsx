@@ -1,5 +1,6 @@
 import type { CancellationDetail as CancellationDetailType } from "../../lib/cancellations/types";
 import { formatDate, formatDateTime } from "../../utils/date";
+import OrderDetailLink from "../orders/OrderDetailLink";
 
 function fmtCurrency(n: number): string {
   return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -15,9 +16,12 @@ export default function CancellationDetailView({
       {/* Header */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">
-            Order {cancellation.orderNumber}
-          </h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white/90">
+              Order {cancellation.orderNumber}
+            </h2>
+            <OrderDetailLink orderNumber={cancellation.orderNumber} />
+          </div>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Order date: {formatDate(cancellation.orderDate)} &middot; Cancelled: {formatDateTime(cancellation.cancellationDate)}
           </p>

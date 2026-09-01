@@ -4,6 +4,7 @@ import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import smsLogsService from "../../lib/sms-logs/smsLogsService";
 import type { SmsLogItem } from "../../lib/sms-logs/types";
+import OrderDetailLink from "../../components/orders/OrderDetailLink";
 
 function fmtDate(raw: string): string {
   if (!raw) return "—";
@@ -92,7 +93,10 @@ export default function SmsLogDetail() {
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Order #</dt>
-                <dd className="mt-0.5 text-gray-800 dark:text-white/90">{log.order_number}</dd>
+                <dd className="mt-0.5 inline-flex items-center gap-1 text-gray-800 dark:text-white/90">
+                  <span>{log.order_number}</span>
+                  <OrderDetailLink orderNumber={log.order_number} />
+                </dd>
               </div>
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">Order Status</dt>
