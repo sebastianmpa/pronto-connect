@@ -166,7 +166,6 @@ export default function OrderNotesPanel({
   }, [currentIdealNotes, trimmedDraft]);
 
   const canAddNote =
-    Boolean(idealState?.order_id) &&
     Boolean(trimmedDraft) &&
     projectedLength <= IDEAL_NOTES_MAX_LENGTH &&
     !saving;
@@ -298,13 +297,11 @@ export default function OrderNotesPanel({
             }}
             maxLength={remainingCharacters}
             rows={3}
-            disabled={!idealState?.order_id || saving || remainingCharacters <= 0}
+            disabled={saving || remainingCharacters <= 0}
             placeholder={
-              !idealState?.order_id
-                ? "IDEAL order is not available."
-                : remainingCharacters <= 0
-                  ? "The IDEAL note is already at the 80 character limit."
-                  : "Write a note to append in IDEAL..."
+              remainingCharacters <= 0
+                ? "The IDEAL note is already at the 80 character limit."
+                : "Write a note to append in IDEAL..."
             }
             className="w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-white/[0.10] dark:bg-gray-900 dark:text-gray-300 dark:disabled:bg-white/[0.03]"
           />
