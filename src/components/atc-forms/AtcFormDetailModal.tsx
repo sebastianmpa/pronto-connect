@@ -7,6 +7,7 @@ import { ATC_FORM_STATUSES } from "../../lib/atc-forms/types";
 import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
 import type { AtcFormItem } from "../../lib/atc-forms/types";
 import { formatDateTime } from "../../utils/date";
+import OrderDetailLink from "../orders/OrderDetailLink";
 
 function sanitizeHtml(html: string): string {
   return DOMPurify.sanitize(html, {
@@ -61,9 +62,12 @@ export default function AtcFormDetailModal({
     >
       <div>
         <div className="mb-1 flex flex-wrap items-start justify-between gap-2 pr-8">
-          <h4 className="text-title-sm font-semibold text-gray-800 dark:text-white/90">
-            {request.customer_name} — Order #{request.order_number}
-          </h4>
+          <div className="flex min-w-0 items-center gap-1">
+            <h4 className="min-w-0 text-title-sm font-semibold text-gray-800 dark:text-white/90">
+              {request.customer_name} — Order #{request.order_number}
+            </h4>
+            <OrderDetailLink orderNumber={request.order_number} />
+          </div>
           <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold capitalize ${statusBadgeClass(request.status)}`}>
             {request.status ?? "pending"}
           </span>

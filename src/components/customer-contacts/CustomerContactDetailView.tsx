@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Button from "../ui/button/Button";
 import type { CustomerContactDetail } from "../../lib/customer-contacts/types";
 import { formatDate, formatDateTime } from "../../utils/date";
+import OrderDetailLink from "../orders/OrderDetailLink";
 
 interface CustomerContactDetailViewProps {
   contact: CustomerContactDetail;
@@ -92,7 +93,19 @@ export default function CustomerContactDetailView({
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <DetailField label="Request ID" value={contact.id} />
           <DetailField label="Order ID" value={contact.order_id} />
-          <DetailField label="Purchase Order" value={contact.po} />
+          <DetailField
+            label="Purchase Order"
+            value={
+              contact.po ? (
+                <span className="inline-flex items-center gap-1">
+                  <span>{contact.po}</span>
+                  <OrderDetailLink orderNumber={contact.po} />
+                </span>
+              ) : (
+                "—"
+              )
+            }
+          />
           <DetailField label="Order Date" value={formatDate(contact.order_date)} />
           <DetailField label="Customer ID" value={contact.customer_id} />
           <DetailField label="Reason" value={contact.reason} />

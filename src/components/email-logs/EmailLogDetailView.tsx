@@ -1,6 +1,7 @@
 import DOMPurify from "dompurify";
 import { formatDateTime } from "../../utils/date";
 import type { EmailLogItem } from "../../lib/email-logs/types";
+import OrderDetailLink from "../orders/OrderDetailLink";
 
 interface EmailLogDetailViewProps {
   log: EmailLogItem;
@@ -49,8 +50,9 @@ export default function EmailLogDetailView({ log }: EmailLogDetailViewProps) {
           <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
             Order #
           </dt>
-          <dd className="mt-1 text-sm font-medium text-gray-800 dark:text-white/90">
-            {log.order_number || "—"}
+          <dd className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-gray-800 dark:text-white/90">
+            <span>{log.order_number || "—"}</span>
+            {log.order_number && <OrderDetailLink orderNumber={log.order_number} />}
           </dd>
         </div>
 
