@@ -153,6 +153,23 @@ export interface PartTracking {
   carrier?: string | null;
 }
 
+export interface PartStoreOffer {
+  store_id?: number | string | null;
+  store_name?: string | null;
+  brand?: string | null;
+  status?: "found" | "not_found" | "error" | string | null;
+  product_id?: number | string | null;
+  variant_id?: number | string | null;
+  sku?: string | null;
+  mpn?: string | null;
+  price?: number | string | null;
+  base_price?: number | string | null;
+  sale_price?: number | string | null;
+  product_url?: string | null;
+  error_code?: string | null;
+  [key: string]: unknown;
+}
+
 /**
  * Current response from:
  * GET /api/parts/detail?mfr=...&partnumber=...&locationid=...
@@ -165,6 +182,7 @@ export interface PartDetailResponse {
   supplier_stock?: PartDynamicRow[];
   purchase_orders?: PartDynamicRow[];
   purchase_orders_meta?: PartPurchaseOrdersMeta | null;
+  store_offers?: PartStoreOffer[];
   eta?: string | null;
   treatment?: string | null;
   links?: PartDetailLinks | null;
@@ -179,6 +197,5 @@ export interface PartDetailResponse {
 export interface PartDetailBcResponse extends PartDetailResponse {
   brand: string;
   mpn: string;
-  total_invoices?: number | string | null;
   suppliers?: PartDynamicRow[];
 }

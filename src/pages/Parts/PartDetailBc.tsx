@@ -6,6 +6,7 @@ import partsService from "../../lib/parts/partsService";
 import type {
   PartDetailBcResponse,
   PartDynamicRow,
+  PartStoreOffer,
 } from "../../lib/parts/types";
 
 function displayValue(value: unknown): string {
@@ -44,6 +45,114 @@ function orderColumns(columns: string[]): string[] {
 
     return 0;
   });
+}
+
+const STORE_OFFER_COLUMN_ORDER = [
+  "store_id",
+  "store_name",
+  "brand",
+  "status",
+  "product_id",
+  "variant_id",
+  "sku",
+  "mpn",
+  "price",
+  "base_price",
+  "sale_price",
+  "product_url",
+  "error_code",
+];
+
+function isPriceColumn(column: string): boolean {
+  return ["price", "base_price", "sale_price"].includes(column);
+}
+
+function formatOfferValue(column: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "-";
+
+  if (isPriceColumn(column)) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `$${parsed.toFixed(2)}` : displayValue(value);
+  }
+
+  return displayValue(value);
+}
+
+function StoreOffersTable({ offers }: { offers: PartStoreOffer[] }) {
+  const columns = useMemo(() => {
+    const returnedColumns = Array.from(
+      offers.reduce<Set<string>>((set, offer) => {
+        Object.keys(offer).forEach((key) => set.add(key));
+        return set;
+      }, new Set<string>()),
+    );
+
+    return [
+      ...STORE_OFFER_COLUMN_ORDER.filter((column) => returnedColumns.includes(column)),
+      ...returnedColumns.filter((column) => !STORE_OFFER_COLUMN_ORDER.includes(column)),
+    ];
+  }, [offers]);
+
+  if (!offers.length) {
+    return (
+      <div className="rounded-xl border border-dashed border-gray-200 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/10 dark:text-gray-500">
+        No store offers returned for this part.
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-white/[0.06]">
+      <table className="w-full min-w-max text-sm">
+        <thead className="bg-gray-50 dark:bg-white/[0.03]">
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={column}
+                className="whitespace-nowrap px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+              >
+                {humanizeKey(column)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {offers.map((offer, rowIndex) => (
+            <tr
+              key={`${String(offer.store_id ?? rowIndex)}-${rowIndex}`}
+              className="hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+            >
+              {columns.map((column) => {
+                const value = offer[column];
+
+                return (
+                  <td
+                    key={`${rowIndex}-${column}`}
+                    className="max-w-[360px] px-4 py-3 align-top text-gray-600 dark:text-gray-400"
+                  >
+                    {column === "product_url" && typeof value === "string" && value.trim() ? (
+                      <a
+                        href={value}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-brand-600 underline underline-offset-2 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                        title={value}
+                      >
+                        Open product
+                        <span aria-hidden="true">↗</span>
+                      </a>
+                    ) : (
+                      <span className="block break-words">{formatOfferValue(column, value)}</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 function DynamicRowsTable({
@@ -164,6 +273,7 @@ export default function PartDetailBc() {
   const stock = part?.stock_location;
   const suppliers = part?.suppliers ?? [];
   const purchaseOrders = part?.purchase_orders ?? [];
+  const storeOffers = part?.store_offers ?? [];
 
   return (
     <>
@@ -265,6 +375,18 @@ export default function PartDetailBc() {
                 </p>
               </div>
               <DynamicRowsTable rows={purchaseOrders} emptyMessage="No associated purchase orders found." />
+            </div>
+
+            <div>
+              <div className="mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Store Offers ({storeOffers.length})
+                </p>
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  Prices and public product links for every store returned by the API. One row is shown per store, including every returned field.
+                </p>
+              </div>
+              <StoreOffersTable offers={storeOffers} />
             </div>
           </>
         )}
