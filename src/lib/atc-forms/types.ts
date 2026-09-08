@@ -13,17 +13,22 @@ export interface AtcFormsParams {
   created_at_to?: string;
 }
 
+export interface AtcFormTypesResponse {
+  form_types: string[];
+}
+
 // ─── Client request ("atc form") record ────────────────────────────────────────
 
 export const ATC_FORM_STATUSES = ["pending", "processed", "cancelled"] as const;
 export type AtcFormStatus = (typeof ATC_FORM_STATUSES)[number];
 
 export interface AtcFormItem {
+  /** atc_forms.id — this is the ID required by the status update endpoint. */
   id: number;
   order_number: string;
   customer_email: string;
   customer_name: string;
-  zoho_ticket_id: string;
+  zoho_ticket_id: string | null;
   /** HTML — may contain unescaped customer-submitted text, sanitize before rendering. */
   ticket_text: string;
   created_at: string;

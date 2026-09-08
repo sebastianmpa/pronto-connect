@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import ordersService from "../../lib/orders/ordersService";
 import type {
   OrderBigCommerceInfo,
@@ -17,7 +17,6 @@ interface ExpandableNoteProps {
   previewLength?: number;
 }
 
-const IDEAL_NOTES_MAX_LENGTH = 80;
 const IDEAL_NOTE_SEPARATOR = " | ";
 const NOTE_PREVIEW_LENGTH = 95;
 
@@ -40,13 +39,17 @@ function getApiErrorMessage(error: unknown): string {
   )?.response;
 
   const apiMessage = cleanText(
-    response?.data?.message ?? response?.data?.error ?? response?.data?.detail,
+    response?.data?.message ??
+      response?.data?.error ??
+      response?.data?.detail,
   );
 
-  if (apiMessage) return apiMessage;
+  if (apiMessage) {
+    return apiMessage;
+  }
 
   if (response?.status === 422) {
-    return "The complete IDEAL note cannot exceed 80 characters.";
+    return "IDEAL rejected the note. Please review the note and try again.";
   }
 
   if (response?.status === 403) {
@@ -68,7 +71,9 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
-      className={`transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+      className={`transition-transform duration-200 ${
+        expanded ? "rotate-180" : ""
+      }`}
     >
       <path
         d="M6 9L12 15L18 9"
@@ -87,6 +92,7 @@ function ExpandableNote({
   previewLength = NOTE_PREVIEW_LENGTH,
 }: ExpandableNoteProps) {
   const [expanded, setExpanded] = useState(false);
+
   const clean = cleanText(text);
   const isLong = clean.length > previewLength;
 
@@ -134,12 +140,18 @@ export default function OrderNotesPanel({
   ideal,
   bigcommerce,
 }: OrderNotesPanelProps) {
-  const [idealState, setIdealState] = useState<OrderIdealInfo | null>(ideal ?? null);
+  const [idealState, setIdealState] =
+    useState<OrderIdealInfo | null>(ideal ?? null);
+
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  /*
+   * La información de IDEAL puede llegar después del primer render.
+   * Mantenemos el estado local sincronizado con la respuesta recibida.
+   */
   useEffect(() => {
     setIdealState(ideal ?? null);
   }, [ideal]);
@@ -148,50 +160,54 @@ export default function OrderNotesPanel({
   const customerNote = cleanText(bigcommerce?.customer_note);
   const trimmedDraft = draft.trim();
 
-  const remainingCharacters = useMemo(() => {
-    const separatorLength = currentIdealNotes ? IDEAL_NOTE_SEPARATOR.length : 0;
-    return Math.max(
-      0,
-      IDEAL_NOTES_MAX_LENGTH - currentIdealNotes.length - separatorLength,
-    );
-  }, [currentIdealNotes]);
-
-  const projectedLength = useMemo(() => {
-    if (!trimmedDraft) return currentIdealNotes.length;
-    return (
-      currentIdealNotes.length +
-      (currentIdealNotes ? IDEAL_NOTE_SEPARATOR.length : 0) +
-      trimmedDraft.length
-    );
-  }, [currentIdealNotes, trimmedDraft]);
-
+  /*
+   * Pronto Connect no bloquea por la longitud de la nota existente.
+   * La validación definitiva queda en el backend / IDEAL.
+   */
   const canAddNote =
+    Boolean(idealState?.order_id) &&
     Boolean(trimmedDraft) &&
-    projectedLength <= IDEAL_NOTES_MAX_LENGTH &&
     !saving;
 
   const handleAddNote = async () => {
-    if (!canAddNote) return;
+    if (!canAddNote) {
+      return;
+    }
 
     setSaving(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const response = await ordersService.addOrderNote(orderNumber, trimmedDraft);
+      const response = await ordersService.addOrderNote(
+        orderNumber,
+        trimmedDraft,
+      );
 
       const updatedIdeal = response.ideal;
 
       if (updatedIdeal) {
+        /*
+         * El backend devolvió la información actualizada.
+         */
         setIdealState(updatedIdeal);
       } else {
+        /*
+         * Fallback visual:
+         * si el backend confirma la operación pero no devuelve
+         * el objeto ideal completo, reflejamos la nota localmente.
+         */
         setIdealState((previous) => ({
           order_id: previous?.order_id ?? null,
+
           notes: currentIdealNotes
             ? `${currentIdealNotes}${IDEAL_NOTE_SEPARATOR}${trimmedDraft}`
             : trimmedDraft,
+
           is_hold: previous?.is_hold ?? false,
-          hold_reason: previous?.hold_reason ?? null,
+
+          hold_reason:
+            previous?.hold_reason ?? null,
         }));
       }
 
@@ -206,11 +222,13 @@ export default function OrderNotesPanel({
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-4 dark:border-white/[0.06] dark:bg-gray-900">
+      {/* HEADER */}
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
             Order Notes
           </p>
+
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
             IDEAL notes, On Hold status and BigCommerce customer note.
           </p>
@@ -224,22 +242,27 @@ export default function OrderNotesPanel({
                 : "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400"
             }`}
           >
-            {idealState.is_hold ? "ON HOLD" : "NOT ON HOLD"}
+            {idealState.is_hold
+              ? "ON HOLD"
+              : "NOT ON HOLD"}
           </span>
         )}
       </div>
 
       <div className="space-y-3">
+        {/* IDEAL NOTES */}
         <div className="rounded-lg bg-gray-50 p-3 dark:bg-white/[0.03]">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
               IDEAL Notes
             </p>
-            {idealState?.order_id !== null && idealState?.order_id !== undefined && (
-              <span className="text-[11px] text-gray-400">
-                ID {idealState.order_id}
-              </span>
-            )}
+
+            {idealState?.order_id !== null &&
+              idealState?.order_id !== undefined && (
+                <span className="text-[11px] text-gray-400">
+                  ID {idealState.order_id}
+                </span>
+              )}
           </div>
 
           <ExpandableNote
@@ -248,14 +271,18 @@ export default function OrderNotesPanel({
             previewLength={NOTE_PREVIEW_LENGTH}
           />
 
-          {idealState?.is_hold && idealState.hold_reason && (
-            <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-400">
-              <span className="font-semibold">Hold reason:</span>{" "}
-              {idealState.hold_reason}
-            </p>
-          )}
+          {idealState?.is_hold &&
+            idealState.hold_reason && (
+              <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-400">
+                <span className="font-semibold">
+                  Hold reason:
+                </span>{" "}
+                {idealState.hold_reason}
+              </p>
+            )}
         </div>
 
+        {/* BIGCOMMERCE CUSTOMER NOTE */}
         <div className="rounded-lg bg-gray-50 p-3 dark:bg-white/[0.03]">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
             BigCommerce Customer Note
@@ -268,6 +295,7 @@ export default function OrderNotesPanel({
           />
         </div>
 
+        {/* ADD NOTE TO IDEAL */}
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-3">
             <label
@@ -276,14 +304,9 @@ export default function OrderNotesPanel({
             >
               Add note to IDEAL
             </label>
-            <span
-              className={`text-[11px] ${
-                projectedLength > IDEAL_NOTES_MAX_LENGTH
-                  ? "text-red-500"
-                  : "text-gray-400"
-              }`}
-            >
-              {projectedLength}/{IDEAL_NOTES_MAX_LENGTH}
+
+            <span className="text-[11px] text-gray-400">
+              {draft.length} characters
             </span>
           </div>
 
@@ -295,48 +318,45 @@ export default function OrderNotesPanel({
               setError(null);
               setSuccess(null);
             }}
-            maxLength={remainingCharacters}
             rows={3}
-            disabled={saving || remainingCharacters <= 0}
+            disabled={!idealState?.order_id || saving}
             placeholder={
-              remainingCharacters <= 0
-                ? "The IDEAL note is already at the 80 character limit."
+              !idealState?.order_id
+                ? "IDEAL order is not available."
                 : "Write a note to append in IDEAL..."
             }
             className="w-full resize-y rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-brand-400 focus:ring-2 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-400 dark:border-white/[0.10] dark:bg-gray-900 dark:text-gray-300 dark:disabled:bg-white/[0.03]"
           />
 
-          <div className="mt-1 flex items-start justify-between gap-3">
-            <p className="text-[11px] leading-4 text-gray-400">
-              IDEAL stores a maximum of 80 characters. The new text is appended using
-              {` "${IDEAL_NOTE_SEPARATOR.trim()}" `}
-              as separator.
-            </p>
-            <span className="shrink-0 text-[11px] text-gray-400">
-              {remainingCharacters} available
-            </span>
-          </div>
+          <p className="mt-1 text-[11px] leading-4 text-gray-400">
+            The new text will be appended to the existing IDEAL notes.
+          </p>
         </div>
 
+        {/* ERROR */}
         {error && (
           <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-400">
             {error}
           </div>
         )}
 
+        {/* SUCCESS */}
         {success && (
           <div className="rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700 dark:bg-green-500/10 dark:text-green-400">
             {success}
           </div>
         )}
 
+        {/* ADD NOTE BUTTON */}
         <button
           type="button"
           onClick={handleAddNote}
           disabled={!canAddNote}
           className="inline-flex w-full items-center justify-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saving ? "Adding note..." : "Add note"}
+          {saving
+            ? "Adding note..."
+            : "Add note"}
         </button>
       </div>
     </div>
