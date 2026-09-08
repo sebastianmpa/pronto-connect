@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Table,
   TableBody,
@@ -59,16 +58,8 @@ function plainText(html: string): string {
 }
 
 export default function AtcFormsTable() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const sourceOrderId = (searchParams.get("order_id") ?? "").trim();
-  const requestedRequestId = Number(searchParams.get("request_id") ?? 0);
-  const hasRequestedRequestId =
-    Number.isFinite(requestedRequestId) && requestedRequestId > 0;
-  const autoOpenAttemptedRef = useRef<string | null>(null);
-
   const [formType, setFormType] = useState("");
-  const [orderNumber, setOrderNumber] = useState(sourceOrderId);
+  const [orderNumber, setOrderNumber] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [status, setStatus] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -85,11 +76,44 @@ export default function AtcFormsTable() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<AtcFormItem | null>(null);
+  const [formTypes, setFormTypes] = useState<string[]>([]);
+  const [formTypesLoading, setFormTypesLoading] = useState(true);
+  const [formTypesError, setFormTypesError] = useState(false);
 
   useEffect(() => {
-    setOrderNumber(sourceOrderId);
-    setPage(1);
-  }, [sourceOrderId]);
+    let active = true;
+
+    setFormTypesLoading(true);
+    setFormTypesError(false);
+
+    atcFormsService
+      .getTypes()
+      .then((response) => {
+        if (!active) return;
+
+        const normalizedTypes = Array.from(
+          new Set(
+            (response.form_types ?? [])
+              .map((value) => String(value ?? "").trim().toLowerCase())
+              .filter(Boolean),
+          ),
+        ).sort((a, b) => a.localeCompare(b));
+
+        setFormTypes(normalizedTypes);
+      })
+      .catch(() => {
+        if (!active) return;
+        setFormTypes([]);
+        setFormTypesError(true);
+      })
+      .finally(() => {
+        if (active) setFormTypesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -146,69 +170,6 @@ export default function AtcFormsTable() {
   useEffect(() => {
     void fetchRequests(1);
   }, [fetchRequests]);
-
-  useEffect(() => {
-    if (!sourceOrderId || !hasRequestedRequestId) return;
-
-    const requestKey = `${sourceOrderId}:${requestedRequestId}`;
-    if (autoOpenAttemptedRef.current === requestKey) return;
-    autoOpenAttemptedRef.current = requestKey;
-
-    let active = true;
-
-    const loadRequestedClientRequest = async () => {
-      try {
-        let requestedPage = 1;
-        let totalPages = 1;
-
-        do {
-          const response = await atcFormsService.getPaginated({
-            page: requestedPage,
-            limit: 100,
-            order_number: sourceOrderId,
-          });
-
-          const match = (response.items ?? []).find(
-            (item) => Number(item.id) === requestedRequestId,
-          );
-
-          if (match) {
-            if (active) setSelectedRequest(match);
-            return;
-          }
-
-          totalPages = Math.max(Number(response.totalPages) || 1, 1);
-          requestedPage += 1;
-        } while (requestedPage <= totalPages);
-
-        if (active) {
-          setError(
-            `Client request #${requestedRequestId} was not found for order #${sourceOrderId}.`,
-          );
-        }
-      } catch {
-        if (active) {
-          setError("Failed to load the selected client request. Please try again.");
-        }
-      }
-    };
-
-    void loadRequestedClientRequest();
-
-    return () => {
-      active = false;
-    };
-  }, [sourceOrderId, requestedRequestId, hasRequestedRequestId]);
-
-  const closeSelectedRequest = () => {
-    setSelectedRequest(null);
-
-    if (sourceOrderId && hasRequestedRequestId) {
-      navigate(`/client-requests?order_id=${encodeURIComponent(sourceOrderId)}`, {
-        replace: true,
-      });
-    }
-  };
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -292,45 +253,32 @@ export default function AtcFormsTable() {
 
   return (
     <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
-      {sourceOrderId && (
-        <div className="rounded-t-xl border border-b-0 border-gray-100 bg-gray-50/70 px-4 py-3 dark:border-white/[0.05] dark:bg-white/[0.02]">
-          <button
-            type="button"
-            onClick={() => navigate(`/orders/${encodeURIComponent(sourceOrderId)}`)}
-            className="group inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-white hover:text-gray-900 dark:text-gray-300 dark:hover:bg-white/[0.05] dark:hover:text-white"
-          >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm transition-colors group-hover:border-brand-200 group-hover:text-brand-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:group-hover:border-brand-500/30 dark:group-hover:text-brand-400">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M19 12H5M5 12L12 19M5 12L12 5"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span>Back to Order</span>
-            <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
-              #{sourceOrderId}
-            </span>
-          </button>
-        </div>
-      )}
-
       <form
         onSubmit={handleSearch}
-        className={`flex flex-col gap-3 border border-b-0 border-gray-100 px-4 py-4 dark:border-white/[0.05] sm:flex-row sm:flex-wrap sm:items-end ${
-          sourceOrderId ? "" : "rounded-t-xl"
-        }`}
+        className="flex flex-col gap-3 rounded-t-xl border border-b-0 border-gray-100 px-4 py-4 dark:border-white/[0.05] sm:flex-row sm:flex-wrap sm:items-end"
       >
-        <input
-          type="text"
-          placeholder="Form type (e.g. claim)"
-          value={formType}
-          onChange={(event) => setFormType(event.target.value)}
-          className={`${inputCls} w-40`}
-        />
+        <div className="relative">
+          <select
+            value={formType}
+            onChange={(event) => setFormType(event.target.value)}
+            disabled={formTypesLoading}
+            title={
+              formTypesError
+                ? "Client Request types could not be loaded. Refresh to try again."
+                : "Filter by Client Request type"
+            }
+            className="h-9 w-44 appearance-none rounded-lg border border-gray-300 bg-transparent py-1 pl-3 pr-8 text-sm capitalize text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+          >
+            <option value="">
+              {formTypesLoading ? "Loading types..." : "All types"}
+            </option>
+            {formTypes.map((value) => (
+              <option key={value} value={value} className="capitalize dark:bg-gray-900">
+                {value}
+              </option>
+            ))}
+          </select>
+        </div>
         <input
           type="text"
           placeholder="Order #"
@@ -504,7 +452,7 @@ export default function AtcFormsTable() {
 
       <AtcFormDetailModal
         isOpen={!!selectedRequest}
-        onClose={closeSelectedRequest}
+        onClose={() => setSelectedRequest(null)}
         request={selectedRequest}
         onStatusChanged={(id, newStatus) => {
           setItems((current) =>

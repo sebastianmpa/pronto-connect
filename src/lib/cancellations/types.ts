@@ -9,7 +9,7 @@ export interface CancellationsParams {
   user?: string;
 }
 
-// ─── Single cancellation (list item) ───────────────────────────────────────────
+// ─── Single cancellation (list item) ─────────────────────────────────────────
 
 export interface CancellationItem {
   salesOrderId: number;
@@ -22,7 +22,7 @@ export interface CancellationItem {
   refundedprice?: number | string | null;
 }
 
-// ─── Paginated response ────────────────────────────────────────────────────────
+// ─── Paginated response ───────────────────────────────────────────────────────
 
 export interface CancellationsResponse {
   currentPage: number;
@@ -31,19 +31,22 @@ export interface CancellationsResponse {
   items: CancellationItem[];
 }
 
-// ─── Users list (for the filter dropdown) ──────────────────────────────────────
+// ─── Users / reasons lists ────────────────────────────────────────────────────
 
 export interface CancellationUsersResponse {
   users: string[];
 }
 
-// ─── Reasons list (for the cancel-order reason dropdown) ───────────────────────
-
+/**
+ * Response used by the cancellation-reasons endpoint.
+ * The current UI consumes the reason text values from this collection.
+ */
 export interface CancellationReasonsResponse {
   reasons: string[];
+  [key: string]: unknown;
 }
 
-// ─── Cancellation detail ───────────────────────────────────────────────────────
+// ─── Cancellation detail ──────────────────────────────────────────────────────
 
 export interface CancellationCustomer {
   name: string;
@@ -64,7 +67,7 @@ export interface CancellationDetail extends CancellationItem {
   items: CancellationLineItem[];
 }
 
-// ─── Submitting a new cancellation (from Order Detail) ─────────────────────────
+// ─── Submitting a new cancellation ────────────────────────────────────────────
 
 export interface CancellationRequestItem {
   PartNumber: string;
@@ -77,8 +80,7 @@ export interface CreateCancellationPayload {
   type: "Total" | "Partial";
   reason: string;
   note?: string;
-  /** Required for Partial cancellations; omitted for Total. */
-  details?: CancellationRequestItem[];
+  details: CancellationRequestItem[];
 }
 
 export interface CreateCancellationResult {

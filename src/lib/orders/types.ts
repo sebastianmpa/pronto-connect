@@ -12,6 +12,7 @@ export interface OrdersSearchParams {
 }
 
 // ─── Single order item ────────────────────────────────────────────────────────
+
 export interface OrderItem {
   salesOrderId: string | null;
   orderDate: string;
@@ -32,6 +33,7 @@ export interface OrdersResponse {
 }
 
 // ─── Order detail ─────────────────────────────────────────────────────────────
+
 export interface OrderDetailItem {
   id: number;
   product_id: number;
@@ -42,8 +44,6 @@ export interface OrderDetailItem {
   name: string;
   url_thumbnail: string;
   quantity: number;
-  ALLOC?: number | string | null;
-  BO?: number | string | null;
   item_status: string;
   cancelled?: string | null;
   refunded?: string | null;
@@ -60,6 +60,7 @@ export interface OrderDetailItem {
     [key: string]: unknown;
   };
 }
+
 export interface BillingAddress {
   first_name: string;
   last_name: string;
@@ -73,6 +74,7 @@ export interface BillingAddress {
   phone: string;
   email: string;
 }
+
 export interface ShippingAddress {
   id: number;
   first_name: string;
@@ -88,6 +90,7 @@ export interface ShippingAddress {
   shipping_method: string;
   cost_inc_tax: string;
 }
+
 export interface OrderHeader {
   id: number;
   customer_id: number;
@@ -108,6 +111,7 @@ export interface OrderHeader {
   order_source: string;
   currency_code: string;
 }
+
 export interface CustomerServiceStatus {
   status: string;
   order_status_internal_name: string;
@@ -115,6 +119,28 @@ export interface CustomerServiceStatus {
   step: number;
   eta: string;
   date?: string;
+}
+
+// ─── IDEAL / BigCommerce order notes ─────────────────────────────────────────
+
+export interface OrderIdealInfo {
+  order_id: number | string | null;
+  notes?: string | null;
+  is_hold?: boolean;
+  hold_reason?: string | null;
+  [key: string]: unknown;
+}
+
+export interface OrderBigCommerceInfo {
+  customer_note?: string | null;
+  [key: string]: unknown;
+}
+
+export interface AddOrderNoteResponse {
+  success?: boolean;
+  message?: string;
+  ideal?: OrderIdealInfo | null;
+  [key: string]: unknown;
 }
 
 // ─── Client requests / activity included in order detail ─────────────────────
@@ -128,6 +154,7 @@ export interface OrderAtcForm {
   created_at: string;
   updated_at: string | null;
 }
+
 export interface OrderCancellation {
   salesOrderId: number | string;
   orderNumber: string;
@@ -136,6 +163,7 @@ export interface OrderCancellation {
   reason: string | null;
   type: string | null;
 }
+
 export interface OrderContactRequest {
   id: number;
   order_id: number | string;
@@ -150,6 +178,7 @@ export interface OrderContactRequest {
   contact_user?: string | null;
   date?: string | null;
 }
+
 export interface OrderCustomerContact {
   id: number;
   order_id: number | string;
@@ -168,6 +197,7 @@ export interface OrderCustomerContact {
   text_messages: number;
   contact_user?: string | null;
 }
+
 export interface OrderSmsLog {
   id: number;
   order_number: string;
@@ -188,35 +218,21 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
-
-export interface OrderIdealInfo {
-  order_id: number | string | null;
-  notes: string | null;
-  is_hold: boolean;
-  hold_reason: string | null;
-}
-
-export interface OrderBigCommerceInfo {
-  customer_note: string | null;
-}
-
 export interface OrderStore {
   description: string;
   url: string;
   logo_color: string | null;
   logo_white: string | null;
 
-  // Store identifier used by GET /api/parts/detail-bc.
-  // The API may expose the same identifier with any of these names.
+  // Store identifier used by the order/parts APIs.
   id?: number | string | null;
   storeid?: number | string | null;
   store_id?: number | string | null;
-  // Invoice configuration returned by the order API. Its exact inner shape is
-  // intentionally left open so the PDF can consume the backend value without
-  // forcing a frontend-only schema.
+
+  // Invoice configuration returned by the order API.
   invoice?: unknown;
 
-  // Backward-compatible fields used only if invoice does not provide them.
+  // Backward-compatible store/address fields.
   address_line_1?: string | null;
   address_line_2?: string | null;
   city?: string | null;
@@ -224,6 +240,7 @@ export interface OrderStore {
   zip?: string | null;
   country?: string | null;
   email?: string | null;
+
   [key: string]: unknown;
 }
 
@@ -232,19 +249,26 @@ export interface OrderDetail {
   storeid?: number | string | null;
   store?: OrderStore | null;
   source: string;
+
+  // Statuses returned by the different order systems.
+  status_ideal?: string | null;
   status_text: string;
   cancelled?: string | null;
   refunded?: string | null;
   business_status: { name: string } | null;
   customer_service_status: CustomerServiceStatus | null;
+
   cancellation_request: unknown | null;
   header: OrderHeader;
   items: OrderDetailItem[];
   shipping_addresses: ShippingAddress[];
   shipments: unknown[];
+
+  // Notes returned by the order detail endpoint.
   ideal?: OrderIdealInfo | null;
   bigcommerce?: OrderBigCommerceInfo | null;
-  // The order detail endpoint now includes the most recent ATC/client activity.
+
+  // Recent ATC/client activity.
   atc_forms?: OrderAtcForm[];
   cancellations?: OrderCancellation[];
   contact_requests?: OrderContactRequest[];
@@ -270,14 +294,3 @@ export interface RevertCancellationResponse {
   message?: string;
   [key: string]: unknown;
 }
-
-// ─── Order notes ──────────────────────────────────────────────────────────────
-
-export interface AddOrderNoteResponse {
-  success?: boolean;
-  order_number?: string;
-  ideal?: OrderIdealInfo | null;
-  message?: string;
-  [key: string]: unknown;
-}
-
