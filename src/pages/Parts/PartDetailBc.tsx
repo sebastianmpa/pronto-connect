@@ -352,6 +352,7 @@ export default function PartDetailBc() {
                 <MetricCard label="Max" value={stock?.max} />
                 <MetricCard label="Bin" value={stock?.binlocation} />
                 <MetricCard label="ETA" value={part.eta} />
+                <MetricCard label="Total Invoices" value={part.total_invoices} />
               </div>
               {part.treatment && (
                 <div className="mt-3 rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.06] dark:text-gray-400">

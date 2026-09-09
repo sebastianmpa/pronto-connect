@@ -47,6 +47,14 @@ export interface OrderDetailItem {
   item_status: string;
   cancelled?: string | null;
   refunded?: string | null;
+
+  // Inventory / allocation values returned by Customer Layer / IDEAL.
+  ALLOC?: number | string | null;
+  BO?: number | string | null;
+  allocated?: number | string | null;
+  backorder?: number | string | null;
+  backorder_qty?: number | string | null;
+  item_internal_eta?: string | null;
   unit_price: string;
   total_price: string;
   raw?: {
@@ -246,12 +254,14 @@ export interface OrderStore {
 
 export interface OrderDetail {
   order_number: string;
+  order_id?: number | string | null;
   storeid?: number | string | null;
   store?: OrderStore | null;
   source: string;
 
   // Statuses returned by the different order systems.
   status_ideal?: string | null;
+  internal_eta?: string | null;
   status_text: string;
   cancelled?: string | null;
   refunded?: string | null;
