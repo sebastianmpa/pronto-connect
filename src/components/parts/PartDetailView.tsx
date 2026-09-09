@@ -8,6 +8,9 @@ interface PartDetailViewProps {
   part: PartDetailResponse;
   locationId: string;
   po?: string;
+  extraMetrics?: Array<{ label: string; value: unknown }>;
+  extraContext?: Array<{ label: string; value: unknown }>;
+  extraDetails?: Array<{ label: string; value: unknown }>;
 }
 
 function displayValue(value: unknown): string {
@@ -224,6 +227,9 @@ export default function PartDetailView({
   part,
   locationId,
   po = "",
+  extraMetrics = [],
+  extraContext = [],
+  extraDetails = [],
 }: PartDetailViewProps) {
   const stock = part.stock_location;
   const product = part.product;
@@ -249,15 +255,54 @@ export default function PartDetailView({
           <p className="mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
             {description}
           </p>
+
+          {extraContext.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+              {extraContext.map((item) => (
+                <span key={item.label}>
+                  <span className="font-semibold text-gray-600 dark:text-gray-300">{item.label}:</span>{" "}
+                  {displayValue(item.value)}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="rounded-xl border border-gray-100 px-4 py-3 text-sm dark:border-white/[0.05]">
-          <p className="text-xs uppercase tracking-wide text-gray-400">Location ID</p>
-          <p className="mt-1 font-medium text-gray-700 dark:text-gray-300">
-            {displayValue(stock?.locationid ?? locationId)}
-          </p>
+        <div className="flex flex-wrap gap-3">
+          <div className="rounded-xl border border-gray-100 px-4 py-3 text-sm dark:border-white/[0.05]">
+            <p className="text-xs uppercase tracking-wide text-gray-400">Location ID</p>
+            <p className="mt-1 font-medium text-gray-700 dark:text-gray-300">
+              {displayValue(stock?.locationid ?? locationId)}
+            </p>
+          </div>
+
+          {extraMetrics.map((metric) => (
+            <div
+              key={metric.label}
+              className="rounded-xl border border-gray-100 px-4 py-3 text-sm dark:border-white/[0.05]"
+            >
+              <p className="text-xs uppercase tracking-wide text-gray-400">{metric.label}</p>
+              <p className="mt-1 font-medium text-gray-700 dark:text-gray-300">
+                {displayValue(metric.value)}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
+
+      {extraDetails.length > 0 && (
+        <div className="space-y-2">
+          {extraDetails.map((item) => (
+            <div
+              key={item.label}
+              className="rounded-xl border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400"
+            >
+              <span className="font-semibold text-gray-700 dark:text-gray-300">{item.label}:</span>{" "}
+              {displayValue(item.value)}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div>
         <SectionHeader title="Stock by Location" />

@@ -1,11 +1,74 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useGlobalSearch } from "../../context/GlobalSearchContext";
 import OrderDetailView from "../orders/OrderDetailView";
 import CustomerDetailView from "../customers/CustomerDetailView";
+import customersService from "../../lib/customers/customersService";
+import type { CustomerHistory } from "../../lib/customers/types";
 
 export default function GlobalSearchResult() {
   const navigate = useNavigate();
   const { query, result, loading, error, clear } = useGlobalSearch();
+
+  const [purchaseHistory, setPurchaseHistory] =
+    useState<CustomerHistory | null>(null);
+  const [purchaseHistoryLoading, setPurchaseHistoryLoading] = useState(false);
+
+  useEffect(() => {
+    if (!result || result.result_type !== "order") {
+      setPurchaseHistory(null);
+      setPurchaseHistoryLoading(false);
+      return;
+    }
+
+    const order = result.result;
+    const customerId = String(order.header?.customer_id ?? "").trim();
+    const customerEmail = String(
+      order.header?.billing_address?.email ??
+        order.shipping_addresses?.[0]?.email ??
+        "",
+    ).trim();
+
+    // Global Search already returns the complete order. At this point we only
+    // load the same customer history used by the normal Order Detail page so
+    // Purchase History is populated without requiring the user to open the
+    // full order page first.
+    // GET /customers/atc/v0/by-store/details?email=...&id=...
+    if (!customerId) {
+      setPurchaseHistory(null);
+      setPurchaseHistoryLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setPurchaseHistory(null);
+    setPurchaseHistoryLoading(true);
+
+    customersService
+      .getDetail(customerEmail, customerId)
+      .then((detail) => {
+        if (!cancelled) {
+          setPurchaseHistory(detail.history ?? null);
+        }
+      })
+      .catch(() => {
+        // Purchase History is supplemental. If this endpoint fails, the order
+        // returned by Global Search must continue to render normally.
+        if (!cancelled) {
+          setPurchaseHistory(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPurchaseHistoryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [result]);
 
   const goToFullPage = () => {
     if (!result) return;
@@ -70,7 +133,11 @@ export default function GlobalSearchResult() {
           </div>
 
           {result.result_type === "order" ? (
-            <OrderDetailView order={result.result} />
+            <OrderDetailView
+              order={result.result}
+              purchaseHistory={purchaseHistory}
+              purchaseHistoryLoading={purchaseHistoryLoading}
+            />
           ) : (
             <CustomerDetailView detail={result.result} />
           )}

@@ -114,7 +114,24 @@ export default function PartDetail() {
         )}
 
         {!loading && !error && part && (
-          <PartDetailView part={part} locationId={locationId} po={po} />
+          <PartDetailView
+            part={part}
+            locationId={locationId}
+            po={po}
+            extraMetrics={[
+              { label: "Available", value: part.stock_location?.onhand_available },
+              { label: "ETA", value: part.eta },
+            ]}
+            extraContext={[
+              { label: "Category", value: part.product?.CATEGORY },
+              { label: "Status", value: part.product?.STATUS },
+            ]}
+            extraDetails={
+              part.treatment
+                ? [{ label: "Treatment", value: part.treatment }]
+                : []
+            }
+          />
         )}
       </div>
     </>

@@ -197,6 +197,11 @@ export interface PartDetailResponse {
 export interface PartDetailBcResponse extends PartDetailResponse {
   brand: string;
   mpn: string;
-  total_invoices?: number | string | null;
+  total_invoices?: InventoryValue;
+
+  /**
+   * Legacy compatibility only. New backend contract uses supplier_stock
+   * for both /detail and /detail-bc.
+   */
   suppliers?: PartDynamicRow[];
 }
