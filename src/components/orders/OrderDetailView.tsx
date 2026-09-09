@@ -6,6 +6,7 @@ import { formatDate, formatDateTime } from "../../utils/date";
 import CancelOrderModal from "./CancelOrderModal";
 import ChangeCustomerInfoModal from "./ChangeCustomerInfoModal";
 import OrderClientRequestsPanel from "./OrderClientRequestsPanel";
+import OrderNotesPanel from "./OrderNotesPanel";
 import partsService from "../../lib/parts/partsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type { CustomerHistory } from "../../lib/customers/types";
@@ -628,8 +629,14 @@ export default function OrderDetailView({
           )}
         </div>
 
-        {/* Activity occupies only the remaining third and scrolls internally. */}
-        <div className="min-w-0 xl:col-span-1 xl:self-start">
+        {/* Notes + activity occupy the remaining third. */}
+        <div className="min-w-0 space-y-5 xl:col-span-1 xl:self-start">
+          <OrderNotesPanel
+            orderNumber={String(order.order_number)}
+            ideal={order.ideal}
+            bigcommerce={order.bigcommerce}
+          />
+
           <OrderClientRequestsPanel
             atcForms={order.atc_forms}
             cancellations={order.cancellations}
