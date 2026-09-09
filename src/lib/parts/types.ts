@@ -197,5 +197,6 @@ export interface PartDetailResponse {
 export interface PartDetailBcResponse extends PartDetailResponse {
   brand: string;
   mpn: string;
+  total_invoices?: number | string | null;
   suppliers?: PartDynamicRow[];
 }
