@@ -75,13 +75,23 @@ export interface CancellationRequestItem {
   UnitsToRefund: number;
 }
 
-export interface CreateCancellationPayload {
+interface CreateCancellationPayloadBase {
   OrderID: string;
-  type: "Total" | "Partial";
   reason: string;
   note?: string;
-  details: CancellationRequestItem[];
 }
+
+export type CreateCancellationPayload =
+  | (CreateCancellationPayloadBase & {
+      type: "Total";
+      /** Total cancellations must not send line-item details. */
+      details?: never;
+    })
+  | (CreateCancellationPayloadBase & {
+      type: "Partial";
+      /** Partial cancellations require the selected line-item details. */
+      details: CancellationRequestItem[];
+    });
 
 export interface CreateCancellationResult {
   success: boolean;
