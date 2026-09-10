@@ -849,6 +849,7 @@ export default function OrderDetailView({
             orderNumber={String(order.order_number)}
             ideal={order.ideal}
             bigcommerce={order.bigcommerce}
+            customerSupportNotes={order.customer_support_notes}
           />
 
           <OrderClientRequestsPanel
