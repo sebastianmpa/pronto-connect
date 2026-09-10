@@ -1,10 +1,3 @@
-export interface PartDetailParams {
-  mfr: string;
-  partNumber: string;
-  locationId: number | string;
-  po?: string;
-}
-
 export interface PartLookupParams {
   partNumber: string;
 }
@@ -204,4 +197,39 @@ export interface PartDetailBcResponse extends PartDetailResponse {
    * for both /detail and /detail-bc.
    */
   suppliers?: PartDynamicRow[];
+}
+
+export interface SupplierStockParams {
+  mfrId: string;
+  partNumber: string;
+  locationId: number | string;
+  force?: boolean;
+}
+
+/**
+ * Response from:
+ * GET /supplier-stock/v0/stock?mfr_id=...&part_number=...&locationid=...&force=true
+ *
+ * Pronto Connect's own part-detail/stock endpoint (replaces the Ideal
+ * /api/parts/detail lookup for the regular Part Detail page). Three cases:
+ *
+ * - source "TABLE": job_id is null, job_status "finished" — data is served
+ *   straight from the DB and is ready immediately, no polling needed.
+ * - source "SCRAPPER" with job_status not "finished" (e.g. "queued"): the
+ *   returned `data` is stale/provisional while a background scrape job runs.
+ *   `job_id` identifies that job; the caller must keep polling this same
+ *   endpoint (same params) until job_status becomes "finished".
+ * - source "SCRAPPER" with job_status "finished": the scrape finished and
+ *   `data` is the fresh result — stop polling.
+ */
+export interface SupplierStockResponse {
+  source: "TABLE" | "SCRAPPER" | string;
+  supplier_id: string | null;
+  part_number: string;
+  data: PartDetailResponse;
+  job_id: string | null;
+  job_status: "finished" | "queued" | string;
+  stale: boolean;
+  refreshing: boolean;
+  last_checked: string | null;
 }

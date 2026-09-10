@@ -1,13 +1,13 @@
-import { idealApiClient } from "../apiClient";
+import apiClient, { idealApiClient } from "../apiClient";
 import type {
   PartDetailBcParams,
   PartDetailBcResponse,
-  PartDetailParams,
-  PartDetailResponse,
   PartLookupApiResponse,
   PartLookupItem,
   PartLookupParams,
   PartLookupResponse,
+  SupplierStockParams,
+  SupplierStockResponse,
 } from "./types";
 
 function assertIdealConfiguration() {
@@ -87,24 +87,26 @@ const partsService = {
     return normalizeLookupResponse(response.data);
   },
 
-  async getDetail(params: PartDetailParams): Promise<PartDetailResponse> {
-    assertIdealConfiguration();
-
-    const cleanPo = params.po?.trim();
-
-    const response = await idealApiClient.get<PartDetailResponse>(
-      "/api/parts/detail",
+  /**
+   * GET /supplier-stock/v0/stock — Pronto Connect's own part-detail/stock
+   * endpoint (main ATC client, not the Ideal service). See SupplierStockResponse
+   * for the TABLE / queued-SCRAPPER / finished-SCRAPPER cases; callers are
+   * responsible for polling while job_status !== "finished".
+   */
+  async getSupplierStock(params: SupplierStockParams): Promise<SupplierStockResponse> {
+    const { data } = await apiClient.get<SupplierStockResponse>(
+      "/supplier-stock/v0/stock",
       {
         params: {
-          mfr: params.mfr.trim(),
-          partnumber: params.partNumber.trim(),
+          mfr_id: params.mfrId.trim(),
+          part_number: params.partNumber.trim(),
           locationid: params.locationId,
-          ...(cleanPo ? { po: cleanPo } : {}),
+          force: params.force ?? true,
         },
       },
     );
 
-    return response.data;
+    return data;
   },
 
   async getDetailBc(params: PartDetailBcParams): Promise<PartDetailBcResponse> {

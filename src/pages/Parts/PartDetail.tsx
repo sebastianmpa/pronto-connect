@@ -11,6 +11,19 @@ import PartDetailView from "../../components/parts/PartDetailView";
 import partsService from "../../lib/parts/partsService";
 import type { PartDetailResponse } from "../../lib/parts/types";
 
+// While a live scrape job is running (source SCRAPPER, job_status !== "finished"),
+// keep polling the same endpoint until it settles.
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 20; // ~60s before giving up and leaving the last known data on screen
+
+interface StockMeta {
+  source: string;
+  jobStatus: string;
+  stale: boolean;
+  refreshing: boolean;
+  lastChecked: string | null;
+}
+
 export default function PartDetail() {
   const { mfr = "", partNumber = "" } = useParams<{
     mfr: string;
@@ -26,6 +39,7 @@ export default function PartDetail() {
   const backTo = (location.state as { from?: string } | null)?.from ?? "/parts";
 
   const [part, setPart] = useState<PartDetailResponse | null>(null);
+  const [stockMeta, setStockMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,23 +52,55 @@ export default function PartDetail() {
       return;
     }
 
+    let cancelled = false;
+    let attempts = 0;
+
     setLoading(true);
     setError(null);
+    setPart(null);
+    setStockMeta(null);
 
-    partsService
-      .getDetail({
-        mfr,
-        partNumber,
-        locationId,
-        po: po || undefined,
-      })
-      .then(setPart)
-      .catch(() => {
+    const poll = async () => {
+      try {
+        const response = await partsService.getSupplierStock({
+          mfrId: mfr,
+          partNumber,
+          locationId,
+          force: true,
+        });
+
+        if (cancelled) return;
+
+        setPart(response.data);
+        setStockMeta({
+          source: response.source,
+          jobStatus: response.job_status,
+          stale: response.stale,
+          refreshing: response.refreshing,
+          lastChecked: response.last_checked,
+        });
+        setLoading(false);
+
+        attempts += 1;
+        if (response.job_status !== "finished" && attempts < MAX_POLL_ATTEMPTS) {
+          setTimeout(() => {
+            if (!cancelled) void poll();
+          }, POLL_INTERVAL_MS);
+        }
+      } catch {
+        if (cancelled) return;
         setPart(null);
         setError("Could not load part details. Please try again.");
-      })
-      .finally(() => setLoading(false));
-  }, [mfr, partNumber, locationId, po]);
+        setLoading(false);
+      }
+    };
+
+    void poll();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mfr, partNumber, locationId]);
 
   return (
     <>
@@ -114,24 +160,37 @@ export default function PartDetail() {
         )}
 
         {!loading && !error && part && (
-          <PartDetailView
-            part={part}
-            locationId={locationId}
-            po={po}
-            extraMetrics={[
-              { label: "Available", value: part.stock_location?.onhand_available },
-              { label: "ETA", value: part.eta },
-            ]}
-            extraContext={[
-              { label: "Category", value: part.product?.CATEGORY },
-              { label: "Status", value: part.product?.STATUS },
-            ]}
-            extraDetails={
-              part.treatment
-                ? [{ label: "Treatment", value: part.treatment }]
-                : []
-            }
-          />
+          <>
+            {stockMeta && stockMeta.jobStatus !== "finished" && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                <svg className="h-4 w-4 shrink-0 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                Fetching live stock from the supplier — showing cached data below, this will update automatically.
+              </div>
+            )}
+
+            <PartDetailView
+              part={part}
+              locationId={locationId}
+              po={po}
+              extraMetrics={[
+                { label: "Available", value: part.stock_location?.onhand_available },
+                { label: "ETA", value: part.eta },
+              ]}
+              extraContext={[
+                { label: "Category", value: part.product?.CATEGORY },
+                { label: "Status", value: part.product?.STATUS },
+                ...(stockMeta ? [{ label: "Data Source", value: stockMeta.source }] : []),
+              ]}
+              extraDetails={
+                part.treatment
+                  ? [{ label: "Treatment", value: part.treatment }]
+                  : []
+              }
+            />
+          </>
         )}
       </div>
     </>
