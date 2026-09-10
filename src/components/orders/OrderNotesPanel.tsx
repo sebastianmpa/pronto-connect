@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ordersService from "../../lib/orders/ordersService";
 import type {
   OrderBigCommerceInfo,
+  OrderCustomerSupportNote,
   OrderIdealInfo,
 } from "../../lib/orders/types";
 
@@ -9,6 +10,7 @@ interface OrderNotesPanelProps {
   orderNumber: string;
   ideal?: OrderIdealInfo | null;
   bigcommerce?: OrderBigCommerceInfo | null;
+  customerSupportNotes?: OrderCustomerSupportNote[] | null;
 }
 
 interface ExpandableNoteProps {
@@ -139,6 +141,7 @@ export default function OrderNotesPanel({
   orderNumber,
   ideal,
   bigcommerce,
+  customerSupportNotes,
 }: OrderNotesPanelProps) {
   const [idealState, setIdealState] =
     useState<OrderIdealInfo | null>(ideal ?? null);
@@ -158,6 +161,9 @@ export default function OrderNotesPanel({
 
   const currentIdealNotes = cleanText(idealState?.notes);
   const customerNote = cleanText(bigcommerce?.customer_note);
+  const supportNotes = Array.isArray(customerSupportNotes)
+    ? customerSupportNotes
+    : [];
   const trimmedDraft = draft.trim();
 
   /*
@@ -230,7 +236,7 @@ export default function OrderNotesPanel({
           </p>
 
           <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-            IDEAL notes, On Hold status and BigCommerce customer note.
+            IDEAL, BigCommerce and customer support notes.
           </p>
         </div>
 
@@ -293,6 +299,61 @@ export default function OrderNotesPanel({
             emptyText="No customer note."
             previewLength={NOTE_PREVIEW_LENGTH}
           />
+        </div>
+
+        {/* CUSTOMER SUPPORT NOTES */}
+        <div className="rounded-lg bg-gray-50 p-3 dark:bg-white/[0.03]">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Customer Support Notes
+            </p>
+
+            {supportNotes.length > 0 && (
+              <span className="text-[11px] text-gray-400">
+                {supportNotes.length}
+              </span>
+            )}
+          </div>
+
+          {supportNotes.length === 0 ? (
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              No customer support notes.
+            </p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {supportNotes.map((supportNote, index) => {
+                const noteText = cleanText(supportNote.note);
+                const author = cleanText(
+                  supportNote.author ?? supportNote.customer_name,
+                );
+                const po = cleanText(supportNote.po);
+                const date = cleanText(supportNote.date);
+
+                return (
+                  <div
+                    key={String(supportNote.id ?? index)}
+                    className="rounded-md border border-gray-200 bg-white p-2.5 dark:border-white/[0.08] dark:bg-gray-900"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-400">
+                      <span>
+                        {author ? `By ${author}` : "Customer support"}
+                      </span>
+
+                      <span>
+                        {[po, date].filter(Boolean).join(" · ")}
+                      </span>
+                    </div>
+
+                    <ExpandableNote
+                      text={noteText}
+                      emptyText="Empty customer support note."
+                      previewLength={NOTE_PREVIEW_LENGTH}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ADD NOTE TO IDEAL */}

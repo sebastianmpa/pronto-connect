@@ -226,6 +226,16 @@ export interface OrderEmailLog {
   recipient?: string | null;
 }
 
+export interface OrderCustomerSupportNote {
+  id: number | string;
+  note?: string | null;
+  po?: string | null;
+  author?: string | null;
+  customer_name?: string | null;
+  date?: string | null;
+  [key: string]: unknown;
+}
+
 export interface OrderStore {
   description: string;
   url: string;
@@ -277,6 +287,7 @@ export interface OrderDetail {
   // Notes returned by the order detail endpoint.
   ideal?: OrderIdealInfo | null;
   bigcommerce?: OrderBigCommerceInfo | null;
+  customer_support_notes?: OrderCustomerSupportNote[];
 
   // Recent ATC/client activity.
   atc_forms?: OrderAtcForm[];
