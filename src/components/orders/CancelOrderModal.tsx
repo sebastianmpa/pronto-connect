@@ -5,7 +5,11 @@ import TextArea from "../form/input/TextArea";
 import Radio from "../form/input/Radio";
 import cancellationsService from "../../lib/cancellations/cancellationsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
-import type { CreateCancellationResult } from "../../lib/cancellations/types";
+import type {
+  CancellationRequestItem,
+  CreateCancellationPayload,
+  CreateCancellationResult,
+} from "../../lib/cancellations/types";
 
 interface CancelOrderModalProps {
   isOpen: boolean;
@@ -37,6 +41,28 @@ function errorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
+function normalizeReason(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function uniqueReasons(values: string[]): string[] {
+  const seen = new Set<string>();
+
+  return values
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => {
+      if (!value) return false;
+      const key = normalizeReason(value);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 export default function CancelOrderModal({
   isOpen,
   onClose,
@@ -48,6 +74,9 @@ export default function CancelOrderModal({
 }: CancelOrderModalProps) {
   const [type, setType] = useState<"Total" | "Partial">("Total");
   const [reason, setReason] = useState("");
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [reasonsLoading, setReasonsLoading] = useState(false);
+  const [reasonsError, setReasonsError] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [selected, setSelected] = useState<Record<number, ItemSelection>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -58,8 +87,14 @@ export default function CancelOrderModal({
   useEffect(() => {
     if (!isOpen) return;
 
+    let active = true;
+    const requestedInitialReason = initialReason.trim();
+
     setType("Total");
-    setReason(initialReason.trim());
+    setReason(requestedInitialReason);
+    setReasons([]);
+    setReasonsLoading(true);
+    setReasonsError(null);
     setNote(initialNote.trim());
     setError(null);
     setWorkflowWarning(null);
@@ -70,6 +105,36 @@ export default function CancelOrderModal({
       initial[item.id] = { checked: true, qty: item.quantity };
     });
     setSelected(initial);
+
+    void cancellationsService
+      .getReasons()
+      .then((values) => {
+        if (!active) return;
+
+        const cleanReasons = uniqueReasons(values);
+        setReasons(cleanReasons);
+
+        if (requestedInitialReason) {
+          const normalizedInitial = normalizeReason(requestedInitialReason);
+          const matchingReason = cleanReasons.find(
+            (value) => normalizeReason(value) === normalizedInitial,
+          );
+          setReason(matchingReason ?? requestedInitialReason);
+        } else {
+          setReason("");
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setReasonsError("Could not load cancellation reasons. Please try reopening the modal.");
+      })
+      .finally(() => {
+        if (active) setReasonsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, [isOpen, order, initialReason, initialNote]);
 
   const toggleItem = (id: number) => {
@@ -102,24 +167,21 @@ export default function CancelOrderModal({
       return;
     }
 
-    const details =
-      type === "Total"
-        ? (order.items ?? []).map((item) => ({
-            PartNumber: item.sku,
-            MFRID: item.raw?.brand ?? "",
-            UnitsToRefund: item.quantity,
-          }))
-        : (order.items ?? [])
-            .filter((item) => selected[item.id]?.checked)
-            .map((item) => ({
-              PartNumber: item.sku,
-              MFRID: item.raw?.brand ?? "",
-              UnitsToRefund: selected[item.id]?.qty ?? item.quantity,
-            }));
+    let details: CancellationRequestItem[] = [];
 
-    if (type === "Partial" && details.length === 0) {
-      setError("Select at least one item to cancel.");
-      return;
+    if (type === "Partial") {
+      details = (order.items ?? [])
+        .filter((item) => selected[item.id]?.checked)
+        .map((item) => ({
+          PartNumber: item.sku,
+          MFRID: item.raw?.brand ?? "",
+          UnitsToRefund: selected[item.id]?.qty ?? item.quantity,
+        }));
+
+      if (details.length === 0) {
+        setError("Select at least one item to cancel.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -127,13 +189,25 @@ export default function CancelOrderModal({
     setWorkflowWarning(null);
 
     try {
-      const response = await cancellationsService.submit({
+      const basePayload = {
         OrderID: order.order_number,
-        type,
         reason: cleanReason,
         ...(cleanNote ? { note: cleanNote } : {}),
-        details,
-      });
+      };
+
+      const payload: CreateCancellationPayload =
+        type === "Total"
+          ? {
+              ...basePayload,
+              type: "Total",
+            }
+          : {
+              ...basePayload,
+              type: "Partial",
+              details,
+            };
+
+      const response = await cancellationsService.submit(payload);
 
       setResult(response);
       onCancelled?.();
@@ -275,15 +349,55 @@ export default function CancelOrderModal({
 
             <div>
               <Label>Reason</Label>
-              <TextArea
-                rows={2}
-                value={reason}
-                onChange={setReason}
-                placeholder="Why is this order being cancelled?"
-              />
+              <div className="relative">
+                <select
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  disabled={reasonsLoading && !reason}
+                  className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
+                >
+                  <option value="" disabled>
+                    {reasonsLoading ? "Loading reasons..." : "Select a reason"}
+                  </option>
+                  {reason &&
+                    !reasons.some(
+                      (value) => normalizeReason(value) === normalizeReason(reason),
+                    ) && (
+                      <option value={reason}>
+                        {reason}
+                      </option>
+                    )}
+                  {reasons.map((value) => (
+                    <option key={value} value={value}>
+                      {value}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-700 dark:text-gray-400"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M4.79175 8.02075L10.0001 13.2291L15.2084 8.02075"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              {reasonsError && (
+                <p className="mt-1 text-xs text-error-500 dark:text-error-400">
+                  {reasonsError}
+                </p>
+              )}
               {initialReason.trim() && (
                 <p className="mt-1 text-xs text-gray-400">
-                  Pre-filled from the Cancellation Client Request. You can edit it before submitting.
+                  Pre-selected from the Cancellation Client Request. You can choose another reason before submitting.
                 </p>
               )}
             </div>
