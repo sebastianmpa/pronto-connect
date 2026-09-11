@@ -33,6 +33,15 @@ interface ItemSelection {
   qty: number;
 }
 
+function itemKey(item: OrderDetailType["items"][number]): string {
+  return String(item.item_id_internal ?? item.id);
+}
+
+function orderedQty(item: OrderDetailType["items"][number]): number {
+  const qty = Number(item.quantity_ordered);
+  return Number.isFinite(qty) && qty > 0 ? qty : 1;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
@@ -78,7 +87,7 @@ export default function CancelOrderModal({
   const [reasonsLoading, setReasonsLoading] = useState(false);
   const [reasonsError, setReasonsError] = useState<string | null>(null);
   const [note, setNote] = useState("");
-  const [selected, setSelected] = useState<Record<number, ItemSelection>>({});
+  const [selected, setSelected] = useState<Record<string, ItemSelection>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workflowWarning, setWorkflowWarning] = useState<string | null>(null);
@@ -100,9 +109,9 @@ export default function CancelOrderModal({
     setWorkflowWarning(null);
     setResult(null);
 
-    const initial: Record<number, ItemSelection> = {};
+    const initial: Record<string, ItemSelection> = {};
     (order.items ?? []).forEach((item) => {
-      initial[item.id] = { checked: true, qty: item.quantity };
+      initial[itemKey(item)] = { checked: true, qty: orderedQty(item) };
     });
     setSelected(initial);
 
@@ -137,7 +146,7 @@ export default function CancelOrderModal({
     };
   }, [isOpen, order, initialReason, initialNote]);
 
-  const toggleItem = (id: number) => {
+  const toggleItem = (id: string) => {
     setSelected((previous) => ({
       ...previous,
       [id]: {
@@ -147,7 +156,7 @@ export default function CancelOrderModal({
     }));
   };
 
-  const setQty = (id: number, qty: number, max: number) => {
+  const setQty = (id: string, qty: number, max: number) => {
     const clamped = Math.max(1, Math.min(qty || 1, max));
     setSelected((previous) => ({
       ...previous,
@@ -171,11 +180,11 @@ export default function CancelOrderModal({
 
     if (type === "Partial") {
       details = (order.items ?? [])
-        .filter((item) => selected[item.id]?.checked)
+        .filter((item) => selected[itemKey(item)]?.checked)
         .map((item) => ({
-          PartNumber: item.sku,
-          MFRID: item.raw?.brand ?? "",
-          UnitsToRefund: selected[item.id]?.qty ?? item.quantity,
+          PartNumber: String(item.partnumber ?? "").trim(),
+          MFRID: String(item.mfr ?? "").trim(),
+          UnitsToRefund: selected[itemKey(item)]?.qty ?? orderedQty(item),
         }));
 
       if (details.length === 0) {
@@ -308,38 +317,38 @@ export default function CancelOrderModal({
               <Label>{type === "Total" ? "Items to cancel" : "Select items to cancel"}</Label>
               <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-gray-700">
                 {(order.items ?? []).map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 text-sm">
+                  <div key={itemKey(item)} className="flex items-center gap-3 text-sm">
                     {type === "Partial" && (
                       <input
                         type="checkbox"
-                        checked={selected[item.id]?.checked ?? false}
-                        onChange={() => toggleItem(item.id)}
+                        checked={selected[itemKey(item)]?.checked ?? false}
+                        onChange={() => toggleItem(itemKey(item))}
                         className="h-4 w-4 shrink-0 rounded border-gray-300"
                       />
                     )}
 
                     <span className="flex-1 truncate text-gray-700 dark:text-gray-300">
-                      {item.name}
+                      {item.description}
                     </span>
                     <span className="shrink-0 whitespace-nowrap text-xs text-gray-400">
-                      SKU {item.sku}
+                      SKU {item.partnumber}
                     </span>
 
                     {type === "Partial" ? (
                       <input
                         type="number"
                         min={1}
-                        max={item.quantity}
-                        disabled={!selected[item.id]?.checked}
-                        value={selected[item.id]?.qty ?? item.quantity}
+                        max={orderedQty(item)}
+                        disabled={!selected[itemKey(item)]?.checked}
+                        value={selected[itemKey(item)]?.qty ?? orderedQty(item)}
                         onChange={(event) =>
-                          setQty(item.id, Number(event.target.value), item.quantity)
+                          setQty(itemKey(item), Number(event.target.value), orderedQty(item))
                         }
                         className="h-8 w-16 shrink-0 rounded-lg border border-gray-300 bg-transparent px-2 text-sm disabled:opacity-40 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                       />
                     ) : (
                       <span className="w-16 shrink-0 text-right text-xs text-gray-400">
-                        Qty {item.quantity}
+                        Qty {item.quantity_ordered}
                       </span>
                     )}
                   </div>

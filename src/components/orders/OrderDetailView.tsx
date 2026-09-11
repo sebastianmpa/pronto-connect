@@ -22,9 +22,10 @@ function sanitizeHtml(html: string): string {
   });
 }
 
-function fmt(val: string): string {
-  const n = parseFloat(val);
-  return isNaN(n) ? val : `$${n.toFixed(2)}`;
+function fmt(val: string | number | null | undefined): string {
+  if (val === null || val === undefined || String(val).trim() === "") return "—";
+  const n = Number(val);
+  return Number.isFinite(n) ? `$${n.toFixed(2)}` : String(val);
 }
 
 function fmtStatusDate(raw?: string | null): string | null {
@@ -84,40 +85,6 @@ function firstDisplayValue(...values: unknown[]): string {
   return "—";
 }
 
-function resolveAllocated(item: OrderDetailType["items"][number]): string {
-  const raw = item.raw ?? {};
-  return firstDisplayValue(
-    item.ALLOC,
-    item.allocated,
-    raw.ALLOC,
-    raw.alloc,
-    raw.allocated,
-  );
-}
-
-function resolveBackorder(item: OrderDetailType["items"][number]): string {
-  const raw = item.raw ?? {};
-  return firstDisplayValue(
-    item.BO,
-    item.backorder,
-    item.backorder_qty,
-    raw.BO,
-    raw.bo,
-    raw.backorder,
-    raw.backorder_qty,
-  );
-}
-
-function resolveItemInternalEta(item: OrderDetailType["items"][number]): string {
-  const raw = item.raw ?? {};
-  return firstText(
-    item.item_internal_eta,
-    raw.item_internal_eta,
-    raw.INTERNAL_ETA,
-    raw.internal_eta,
-  );
-}
-
 function resolveItemStatus(item: OrderDetailType["items"][number]): string {
   if (isYesFlag(item.refunded)) return "refunded";
   if (isYesFlag(item.cancelled)) return "cancelled";
@@ -175,6 +142,21 @@ function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
   }
 
   return { brand, mpn };
+}
+
+function resolveIdealPartDetailInfo(item: OrderDetailType["items"][number]) {
+  return {
+    mfr: firstText(item.mfr),
+    partnumber: firstText(item.partnumber),
+  };
+}
+
+function orderItemKey(item: OrderDetailType["items"][number]): string {
+  return String(
+    item.item_id_internal ??
+      item.id ??
+      `${String(item.mfr ?? "")}|${String(item.partnumber ?? "")}`,
+  );
 }
 
 const STEPS = [
@@ -266,7 +248,7 @@ export default function OrderDetailView({
     order.store?.store_id ??
     null;
 
-  const [totalInvoicesByItem, setTotalInvoicesByItem] = useState<Record<number, number | null>>({});
+  const [totalInvoicesByItem, setTotalInvoicesByItem] = useState<Record<string, number | null>>({});
 
   useEffect(() => {
     let active = true;
@@ -290,7 +272,7 @@ export default function OrderDetailView({
         const { brand, mpn } = resolvePartDetailInfo(item);
 
         if (!brand || !mpn) {
-          return [item.id, null] as const;
+          return [orderItemKey(item), null] as const;
         }
 
         try {
@@ -302,19 +284,19 @@ export default function OrderDetailView({
           const rawTotal = detail.total_invoices as unknown;
           const parsed = Number(rawTotal);
           return [
-            item.id,
+            orderItemKey(item),
             rawTotal !== null && rawTotal !== undefined && Number.isFinite(parsed)
               ? parsed
               : null,
           ] as const;
         } catch {
-          return [item.id, null] as const;
+          return [orderItemKey(item), null] as const;
         }
       }),
     ).then((entries) => {
       if (!active) return;
       setTotalInvoicesByItem(
-        Object.fromEntries(entries) as Record<number, number | null>,
+        Object.fromEntries(entries) as Record<string, number | null>,
       );
     });
 
@@ -324,14 +306,14 @@ export default function OrderDetailView({
   }, [order.items, storeId]);
 
   const openPartDetail = (item: OrderDetailType["items"][number]) => {
-    const { brand, mpn } = resolvePartDetailInfo(item);
+    const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
 
-    if (!brand || !mpn || storeId === null || storeId === undefined || String(storeId).trim() === "") {
+    if (!mfr || !partnumber) {
       return;
     }
 
     navigate(
-      `/parts/bc/${encodeURIComponent(brand)}/${encodeURIComponent(mpn)}?storeid=${encodeURIComponent(String(storeId))}`,
+      `/parts/${encodeURIComponent(mfr)}/${encodeURIComponent(partnumber)}?locationid=4`,
       {
         state: { from: `${location.pathname}${location.search}` },
       },
@@ -350,7 +332,7 @@ export default function OrderDetailView({
       type: "Partial",
       brand,
       mpn,
-      itemName: item.name,
+      itemName: firstText(item.description, item.name),
       itemStatus,
     });
   };
@@ -684,7 +666,7 @@ export default function OrderDetailView({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 dark:bg-white/[0.03]">
                     <tr>
-                      <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">Product</th>
+                      <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">MFR</th>
                       <th className="px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400">SKU</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Qty</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">ALLOC</th>
@@ -699,27 +681,28 @@ export default function OrderDetailView({
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
                     {order.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {item.url_thumbnail && (
-                              <img
-                                src={item.url_thumbnail}
-                                alt={item.name}
-                                className="h-10 w-10 rounded-lg border border-gray-100 bg-white object-contain dark:border-white/[0.06]"
-                              />
-                            )}
-                            <span className="max-w-xs break-words font-medium text-gray-800 dark:text-white/90">
-                              {item.name}
-                            </span>
-                          </div>
+                      <tr key={orderItemKey(item)} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                        <td className="whitespace-nowrap px-4 py-3 font-medium text-gray-800 dark:text-white/90">
+                          {firstDisplayValue(item.mfr)}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-500 dark:text-gray-400">{item.sku}</td>
-                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{item.quantity}</td>
-                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{resolveAllocated(item)}</td>
-                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">{resolveBackorder(item)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">{fmt(item.unit_price)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">{fmt(item.total_price)}</td>
+                        <td className="whitespace-nowrap px-4 py-3 text-gray-500 dark:text-gray-400">
+                          {firstDisplayValue(item.partnumber)}
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                          {firstDisplayValue(item.quantity_ordered)}
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                          {firstDisplayValue(item.ALLOC)}
+                        </td>
+                        <td className="px-4 py-3 text-center text-gray-700 dark:text-gray-300">
+                          {firstDisplayValue(item.BO)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">
+                          {fmt(item.price)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">
+                          {fmt(item.total_price)}
+                        </td>
                         <td className="px-4 py-3 text-center">
                           {(() => {
                             const itemStatus = resolveItemStatus(item);
@@ -739,9 +722,9 @@ export default function OrderDetailView({
                             return (
                               <div className="flex flex-col items-center gap-2">
                                 <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${itemStatusClasses(itemStatus)}`}
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${itemStatusClasses(String(item.item_status ?? ""))}`}
                                 >
-                                  {itemStatus.toLowerCase()}
+                                  {String(item.item_status ?? "—")}
                                 </span>
 
                                 {showItemRevert && (
@@ -764,33 +747,25 @@ export default function OrderDetailView({
                           })()}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-center text-gray-700 dark:text-gray-300">
-                          {(() => {
-                            const eta = resolveItemInternalEta(item);
-                            return eta ? formatDate(eta) : "—";
-                          })()}
+                          {item.item_internal_eta ? formatDate(item.item_internal_eta) : "—"}
                         </td>
                         <td className="px-4 py-3 text-center font-medium text-gray-700 dark:text-gray-300">
-                          {totalInvoicesByItem[item.id] === undefined
+                          {totalInvoicesByItem[orderItemKey(item)] === undefined
                             ? "..."
-                            : totalInvoicesByItem[item.id] ?? "—"}
+                            : totalInvoicesByItem[orderItemKey(item)] ?? "—"}
                         </td>
                         <td className="px-3 py-3 text-center">
                           {(() => {
-                            const { brand, mpn } = resolvePartDetailInfo(item);
-                            const canOpenPartDetail =
-                              Boolean(brand) &&
-                              Boolean(mpn) &&
-                              storeId !== null &&
-                              storeId !== undefined &&
-                              String(storeId).trim() !== "";
+                            const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
+                            const canOpenPartDetail = Boolean(mfr) && Boolean(partnumber);
 
                             return canOpenPartDetail ? (
                               <button
                                 type="button"
                                 onClick={() => openPartDetail(item)}
                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-600 dark:border-white/[0.10] dark:text-gray-400 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/10 dark:hover:text-brand-400"
-                                title={`View part detail: ${brand} ${mpn}`}
-                                aria-label={`View part detail for ${brand} ${mpn}`}
+                                title={`View part detail: ${mfr} ${partnumber}`}
+                                aria-label={`View part detail for ${mfr} ${partnumber}`}
                               >
                                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                   <path
@@ -806,7 +781,7 @@ export default function OrderDetailView({
                             ) : (
                               <span
                                 className="inline-flex h-8 w-8 items-center justify-center text-gray-300 dark:text-gray-700"
-                                title="Brand, MPN or Store ID is not available for this item"
+                                title="MFR or Part Number is not available for this item"
                               >
                                 -
                               </span>

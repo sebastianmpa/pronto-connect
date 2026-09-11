@@ -35,6 +35,17 @@ export interface OrdersResponse {
 // ─── Order detail ─────────────────────────────────────────────────────────────
 
 export interface OrderDetailItem {
+  // Current order API / IDEAL fields.
+  item_id_internal?: number | string | null;
+  mfr?: string | null;
+  partnumber?: string | null;
+  description?: string | null;
+  quantity_ordered?: number | string | null;
+  quantity_allocated?: number | string | null;
+  price?: number | string | null;
+  total_invoices?: number | string | null;
+
+  // Legacy/BigCommerce-compatible fields kept because other order features may still use them.
   id: number;
   product_id: number;
   variant_id: number;
