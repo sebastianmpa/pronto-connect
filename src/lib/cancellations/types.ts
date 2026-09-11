@@ -70,8 +70,8 @@ export interface CancellationDetail extends CancellationItem {
 // ─── Submitting a new cancellation ────────────────────────────────────────────
 
 export interface CancellationRequestItem {
-  PartNumber: string;
-  MFRID: string;
+  mfr: string;
+  partnumber: string;
   UnitsToRefund: number;
 }
 

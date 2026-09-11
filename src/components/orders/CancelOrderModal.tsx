@@ -182,13 +182,18 @@ export default function CancelOrderModal({
       details = (order.items ?? [])
         .filter((item) => selected[itemKey(item)]?.checked)
         .map((item) => ({
-          PartNumber: String(item.partnumber ?? "").trim(),
-          MFRID: String(item.mfr ?? "").trim(),
+          mfr: String(item.mfr ?? "").trim(),
+          partnumber: String(item.partnumber ?? "").trim(),
           UnitsToRefund: selected[itemKey(item)]?.qty ?? orderedQty(item),
         }));
 
       if (details.length === 0) {
         setError("Select at least one item to cancel.");
+        return;
+      }
+
+      if (details.some((detail) => !detail.mfr || !detail.partnumber)) {
+        setError("MFR and Part Number are required for each selected item.");
         return;
       }
     }

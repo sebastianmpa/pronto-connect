@@ -2,6 +2,8 @@ import apiClient, { idealApiClient } from "../apiClient";
 import type {
   PartDetailBcParams,
   PartDetailBcResponse,
+  PartDetailParams,
+  PartDetailResponse,
   PartLookupApiResponse,
   PartLookupItem,
   PartLookupParams,
@@ -85,6 +87,23 @@ const partsService = {
     );
 
     return normalizeLookupResponse(response.data);
+  },
+
+  async getDetail(params: PartDetailParams): Promise<PartDetailResponse> {
+    assertIdealConfiguration();
+
+    const response = await idealApiClient.get<PartDetailResponse>(
+      "/api/parts/detail",
+      {
+        params: {
+          mfr: params.mfr.trim(),
+          partnumber: params.partNumber.trim(),
+          locationid: params.locationId,
+        },
+      },
+    );
+
+    return response.data;
   },
 
   /**
