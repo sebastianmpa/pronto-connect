@@ -43,6 +43,7 @@ export interface OrderDetailItem {
   quantity_ordered?: number | string | null;
   quantity_allocated?: number | string | null;
   price?: number | string | null;
+  net?: number | string | null;
   total_invoices?: number | string | null;
 
   // Legacy/BigCommerce-compatible fields kept because other order features may still use them.
@@ -317,8 +318,8 @@ export type RevertCancellationPayload =
     }
   | {
       type: "Partial";
-      brand: string;
-      mpn: string;
+      mfr: string;
+      partnumber: string;
     };
 
 export interface RevertCancellationResponse {

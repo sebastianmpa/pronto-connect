@@ -2,6 +2,12 @@ export interface PartLookupParams {
   partNumber: string;
 }
 
+export interface PartDetailParams {
+  mfr: string;
+  partNumber: string;
+  locationId: number | string;
+}
+
 export interface PartDetailBcParams {
   storeId: number | string;
   brand: string;
@@ -180,6 +186,7 @@ export interface PartDetailResponse {
   treatment?: string | null;
   links?: PartDetailLinks | null;
   tracking?: PartTracking | null;
+  total_invoices?: InventoryValue;
   [key: string]: unknown;
 }
 

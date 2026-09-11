@@ -12,8 +12,8 @@ export type RevertCancellationTarget =
     }
   | {
       type: "Partial";
-      brand: string;
-      mpn: string;
+      mfr: string;
+      partnumber: string;
       itemName?: string;
       itemStatus?: string;
     };
@@ -57,21 +57,21 @@ export default function RevertCancellationModal({
       return { type: "Total" };
     }
 
-    const brand = String(target.brand ?? "").trim();
-    const mpn = String(target.mpn ?? "").trim();
+    const mfr = String(target.mfr ?? "").trim();
+    const partnumber = String(target.partnumber ?? "").trim();
 
-    if (!brand || !mpn) return null;
+    if (!mfr || !partnumber) return null;
 
     return {
       type: "Partial",
-      brand,
-      mpn,
+      mfr,
+      partnumber,
     };
   }, [target]);
 
   const handleConfirm = async () => {
     if (!payload) {
-      setError("Brand and MPN are required to revert an item cancellation.");
+      setError("MFR and Part Number are required to revert an item cancellation.");
       return;
     }
 
@@ -175,13 +175,13 @@ export default function RevertCancellationModal({
                 )}
 
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400">Brand</span>
-                  <span className="font-medium text-gray-800 dark:text-white/90">{target.brand}</span>
+                  <span className="text-gray-500 dark:text-gray-400">MFR</span>
+                  <span className="font-medium text-gray-800 dark:text-white/90">{target.mfr}</span>
                 </div>
 
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500 dark:text-gray-400">MPN</span>
-                  <span className="font-medium text-gray-800 dark:text-white/90">{target.mpn}</span>
+                  <span className="text-gray-500 dark:text-gray-400">Part Number</span>
+                  <span className="font-medium text-gray-800 dark:text-white/90">{target.partnumber}</span>
                 </div>
 
                 {target.itemStatus && (

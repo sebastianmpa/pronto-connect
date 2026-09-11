@@ -38,6 +38,8 @@ export default function PartDetail() {
   const po = searchParams.get("po") ?? "";
   const backTo = (location.state as { from?: string } | null)?.from ?? "/parts";
 
+  const backLabel = backTo.startsWith("/orders/") ? "Back to Order" : "Back to Parts";
+
   const [part, setPart] = useState<PartDetailResponse | null>(null);
   const [stockMeta, setStockMeta] = useState<StockMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,7 +127,7 @@ export default function PartDetail() {
               strokeLinejoin="round"
             />
           </svg>
-          Back to Parts
+          {backLabel}
         </button>
 
         {loading && (

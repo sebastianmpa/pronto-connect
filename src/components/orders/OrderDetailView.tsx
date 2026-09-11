@@ -105,45 +105,6 @@ function itemStatusClasses(status: string): string {
   return "bg-yellow-50 text-yellow-700 dark:bg-yellow-500/10 dark:text-yellow-400";
 }
 
-function resolvePartDetailInfo(item: OrderDetailType["items"][number]) {
-  const raw = item.raw ?? {};
-
-  const brand = firstText(
-    item.brand,
-    raw.brand,
-    raw.BRAND,
-    raw.mfr,
-    raw.MFRID,
-  );
-
-  let mpn = firstText(
-    item.mpn,
-    raw.mpn,
-    raw.MPN,
-    raw.partnumber,
-    raw.PARTNUMBER,
-    raw.manufacturer_part_number,
-  );
-
-  // Some order responses do not expose MPN separately even though the SKU is
-  // the manufacturer part number. Keep the existing part-detail action usable
-  // in that response shape without changing the order API.
-  if (!mpn) {
-    const sku = String(item.sku ?? "").trim();
-
-    if (sku) {
-      const upperBrand = brand.toUpperCase();
-      const upperSku = sku.toUpperCase();
-      mpn =
-        brand && upperSku.startsWith(`${upperBrand} `)
-          ? sku.slice(brand.length).trim()
-          : sku;
-    }
-  }
-
-  return { brand, mpn };
-}
-
 function resolveIdealPartDetailInfo(item: OrderDetailType["items"][number]) {
   return {
     mfr: firstText(item.mfr),
@@ -241,24 +202,13 @@ export default function OrderDetailView({
     !orderIsRefunded &&
     !revertBlockedByOrderStatus;
 
-  const storeId =
-    order.storeid ??
-    order.store?.id ??
-    order.store?.storeid ??
-    order.store?.store_id ??
-    null;
-
-  const [totalInvoicesByItem, setTotalInvoicesByItem] = useState<Record<string, number | null>>({});
+  const [totalInvoicesByItem, setTotalInvoicesByItem] =
+    useState<Record<string, number | null>>({});
 
   useEffect(() => {
     let active = true;
 
-    if (
-      storeId === null ||
-      storeId === undefined ||
-      String(storeId).trim() === "" ||
-      !order.items?.length
-    ) {
+    if (!order.items?.length) {
       setTotalInvoicesByItem({});
       return () => {
         active = false;
@@ -269,17 +219,17 @@ export default function OrderDetailView({
 
     Promise.all(
       order.items.map(async (item) => {
-        const { brand, mpn } = resolvePartDetailInfo(item);
+        const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
 
-        if (!brand || !mpn) {
+        if (!mfr || !partnumber) {
           return [orderItemKey(item), null] as const;
         }
 
         try {
-          const detail = await partsService.getDetailBc({
-            storeId: String(storeId),
-            brand,
-            mpn,
+          const detail = await partsService.getDetail({
+            mfr,
+            partNumber: partnumber,
+            locationId: 4,
           });
           const rawTotal = detail.total_invoices as unknown;
           const parsed = Number(rawTotal);
@@ -303,7 +253,7 @@ export default function OrderDetailView({
     return () => {
       active = false;
     };
-  }, [order.items, storeId]);
+  }, [order.items]);
 
   const openPartDetail = (item: OrderDetailType["items"][number]) => {
     const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
@@ -325,13 +275,13 @@ export default function OrderDetailView({
   };
 
   const openItemRevert = (item: OrderDetailType["items"][number]) => {
-    const { brand, mpn } = resolvePartDetailInfo(item);
+    const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
     const itemStatus = resolveItemStatus(item);
 
     setRevertTarget({
       type: "Partial",
-      brand,
-      mpn,
+      mfr,
+      partnumber,
       itemName: firstText(item.description, item.name),
       itemStatus,
     });
@@ -671,7 +621,7 @@ export default function OrderDetailView({
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Qty</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">ALLOC</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">BO</th>
-                      <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Unit</th>
+                      <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">NET</th>
                       <th className="px-4 py-3 text-right font-medium text-gray-500 dark:text-gray-400">Total</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Status</th>
                       <th className="px-4 py-3 text-center font-medium text-gray-500 dark:text-gray-400">Internal ETA</th>
@@ -698,7 +648,7 @@ export default function OrderDetailView({
                           {firstDisplayValue(item.BO)}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right text-gray-700 dark:text-gray-300">
-                          {fmt(item.price)}
+                          {fmt(item.net)}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right font-medium text-gray-800 dark:text-white/90">
                           {fmt(item.total_price)}
@@ -716,8 +666,8 @@ export default function OrderDetailView({
                               itemIsCancelled &&
                               !itemIsRefunded &&
                               !revertBlockedByOrderStatus;
-                            const { brand, mpn } = resolvePartDetailInfo(item);
-                            const hasRevertIdentifiers = Boolean(brand && mpn);
+                            const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
+                            const hasRevertIdentifiers = Boolean(mfr && partnumber);
 
                             return (
                               <div className="flex flex-col items-center gap-2">
@@ -734,8 +684,8 @@ export default function OrderDetailView({
                                     disabled={!hasRevertIdentifiers}
                                     title={
                                       hasRevertIdentifiers
-                                        ? `Revert cancellation: ${brand} ${mpn}`
-                                        : "Brand or MPN is not available for this item"
+                                        ? `Revert cancellation: ${mfr} ${partnumber}`
+                                        : "MFR or Part Number is not available for this item"
                                     }
                                     className="rounded-lg border border-success-300 bg-success-50 px-2.5 py-1 text-[11px] font-semibold text-success-700 transition-colors hover:bg-success-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-success-500/30 dark:bg-success-500/10 dark:text-success-400 dark:hover:bg-success-500/20"
                                   >
