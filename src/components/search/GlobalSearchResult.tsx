@@ -137,6 +137,9 @@ export default function GlobalSearchResult() {
               order={result.result}
               purchaseHistory={purchaseHistory}
               purchaseHistoryLoading={purchaseHistoryLoading}
+              partDetailBackTo={`/orders/${encodeURIComponent(
+                String(result.result.order_number),
+              )}`}
             />
           ) : (
             <CustomerDetailView detail={result.result} />

@@ -133,11 +133,13 @@ export default function OrderDetailView({
   onCancelled,
   purchaseHistory,
   purchaseHistoryLoading = false,
+  partDetailBackTo,
 }: {
   order: OrderDetailType;
   onCancelled?: () => void;
   purchaseHistory?: CustomerHistory | null;
   purchaseHistoryLoading?: boolean;
+  partDetailBackTo?: string;
 }) {
   const cancelModal = useModal();
   const customerInfoModal = useModal();
@@ -265,7 +267,11 @@ export default function OrderDetailView({
     navigate(
       `/parts/${encodeURIComponent(mfr)}/${encodeURIComponent(partnumber)}?locationid=4`,
       {
-        state: { from: `${location.pathname}${location.search}` },
+        state: {
+          from:
+            partDetailBackTo?.trim() ||
+            `${location.pathname}${location.search}`,
+        },
       },
     );
   };
