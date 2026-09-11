@@ -1,3 +1,5 @@
+import { Fragment, useState } from "react";
+import { formatDateTime } from "../../utils/date";
 import type {
   PartDetailResponse,
   PartDynamicRow,
@@ -165,6 +167,66 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
   );
 }
 
+interface WarehouseEntry {
+  warehouse_name?: string;
+  onhandqty?: number | string;
+  is_main_warehouse?: boolean;
+  last_updated?: string;
+  [key: string]: unknown;
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={`shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+    >
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function parseWarehouses(value: unknown): WarehouseEntry[] {
+  return Array.isArray(value) ? (value as WarehouseEntry[]) : [];
+}
+
+// Rendered as a full-width table row (colSpan across every column) so the
+// expanded warehouse breakdown is not squeezed into the narrow cell width.
+function WarehousesPanel({ warehouses }: { warehouses: WarehouseEntry[] }) {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {warehouses.map((warehouse, index) => (
+        <div
+          key={`${warehouse.warehouse_name ?? "warehouse"}-${index}`}
+          className="rounded-lg border border-gray-100 bg-white px-3 py-2.5 dark:border-white/[0.05] dark:bg-white/[0.02]"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium text-gray-800 dark:text-white/90">
+              {displayValue(warehouse.warehouse_name)}
+            </span>
+            {warehouse.is_main_warehouse && (
+              <span className="shrink-0 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
+                Main
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-gray-500 dark:text-gray-400">
+            Qty: {displayValue(warehouse.onhandqty)}
+          </p>
+          {warehouse.last_updated && (
+            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+              Updated {formatDateTime(warehouse.last_updated)}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DynamicRowsTable({
   rows,
   emptyMessage,
@@ -172,6 +234,8 @@ function DynamicRowsTable({
   rows: PartDynamicRow[];
   emptyMessage: string;
 }) {
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
   if (!rows.length) {
     return (
       <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
@@ -187,6 +251,10 @@ function DynamicRowsTable({
         return set;
       }, new Set<string>()),
     ),
+  );
+
+  const warehousesColumn = columns.find(
+    (column) => normalizeColumnKey(column) === "warehouses",
   );
 
   return (
@@ -205,18 +273,50 @@ function DynamicRowsTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-          {rows.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
-              {columns.map((column) => (
-                <td
-                  key={`${rowIndex}-${column}`}
-                  className="max-w-[320px] px-4 py-3 align-top text-gray-600 dark:text-gray-400"
-                >
-                  <span className="block break-words">{displayValue(row[column])}</span>
-                </td>
-              ))}
-            </tr>
-          ))}
+          {rows.map((row, rowIndex) => {
+            const warehouses = warehousesColumn
+              ? parseWarehouses(row[warehousesColumn])
+              : [];
+            const isExpanded = expandedRow === rowIndex && warehouses.length > 0;
+
+            return (
+              <Fragment key={rowIndex}>
+                <tr className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                  {columns.map((column) => (
+                    <td
+                      key={`${rowIndex}-${column}`}
+                      className="max-w-[320px] px-4 py-3 align-top text-gray-600 dark:text-gray-400"
+                    >
+                      {column === warehousesColumn ? (
+                        warehouses.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedRow((current) => (current === rowIndex ? null : rowIndex))
+                            }
+                            className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                          >
+                            <ChevronIcon open={isExpanded} />
+                            {warehouses.length} warehouse{warehouses.length === 1 ? "" : "s"}
+                          </button>
+                        )
+                      ) : (
+                        <span className="block break-words">{displayValue(row[column])}</span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+
+                {isExpanded && (
+                  <tr className="bg-gray-50/60 dark:bg-white/[0.02]">
+                    <td colSpan={columns.length} className="px-4 py-4">
+                      <WarehousesPanel warehouses={warehouses} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

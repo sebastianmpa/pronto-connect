@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import axios from "axios";
 import {
   Table,
   TableBody,
@@ -110,12 +111,17 @@ export default function PartsTable() {
       if (response.items.length === 0) {
         setError("No parts were found for this SKU.");
       }
-    } catch {
+    } catch (err) {
       setResults([]);
       setTotal(0);
-      setError(
-        "Parts could not be loaded. Please verify the SKU and the Ideal API configuration.",
-      );
+
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        setError("No parts were found for this SKU.");
+      } else {
+        setError(
+          "Parts could not be loaded. Please verify the SKU and the Ideal API configuration.",
+        );
+      }
     } finally {
       setLoading(false);
     }
