@@ -11,6 +11,13 @@ interface SelectProps {
   onChange: (value: string) => void;
   className?: string;
   defaultValue?: string;
+  /**
+   * Controlled value — when provided, this always wins over the internal
+   * uncontrolled state. Use this (instead of `defaultValue`) whenever the
+   * selection can change after mount (e.g. it's loaded/reset asynchronously),
+   * since `defaultValue` is only read once, on first mount.
+   */
+  value?: string;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -19,14 +26,16 @@ const Select: React.FC<SelectProps> = ({
   onChange,
   className = "",
   defaultValue = "",
+  value,
 }) => {
-  // Manage the selected value
-  const [selectedValue, setSelectedValue] = useState<string>(defaultValue);
+  // Manage the selected value when uncontrolled (no `value` prop supplied)
+  const [internalValue, setInternalValue] = useState<string>(defaultValue);
+  const selectedValue = value !== undefined ? value : internalValue;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
-    setSelectedValue(value);
-    onChange(value); // Trigger parent handler
+    const next = e.target.value;
+    setInternalValue(next);
+    onChange(next); // Trigger parent handler
   };
 
   return (
