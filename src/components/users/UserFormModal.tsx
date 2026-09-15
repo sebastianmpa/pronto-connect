@@ -46,8 +46,14 @@ export default function UserFormModal({ isOpen, onClose, user, onSaved }: UserFo
   }, [isOpen, user]);
 
   const handleSave = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim() || !roleId) {
-      setError("First name, last name, email and role are all required.");
+    const missing: string[] = [];
+    if (!firstName.trim()) missing.push("first name");
+    if (!lastName.trim()) missing.push("last name");
+    if (!email.trim()) missing.push("email");
+    if (!roleId) missing.push("role");
+
+    if (missing.length > 0) {
+      setError(`Please fill in: ${missing.join(", ")}.`);
       return;
     }
     if (!isEditing && !password.trim()) {
@@ -129,9 +135,8 @@ export default function UserFormModal({ isOpen, onClose, user, onSaved }: UserFo
           <div>
             <Label>Role</Label>
             <Select
-              key={`${user?.id ?? "new"}-${isOpen}`}
               options={roles.map((r) => ({ value: r.id, label: r.name }))}
-              defaultValue={roleId}
+              value={roleId}
               onChange={setRoleId}
               placeholder="Select a role"
             />
