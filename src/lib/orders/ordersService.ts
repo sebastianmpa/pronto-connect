@@ -37,6 +37,19 @@ const ordersService = {
   },
 
   /**
+   * GET /customer-orders/atc/v0/order/{orderNumber}/invoice?origin=Pronto Connect
+   *
+   * Returns BigCommerce-compatible order items required by the invoice PDF.
+   */
+  getInvoiceDetail: async (orderNumber: string): Promise<OrderDetail> => {
+    const { data } = await apiClient.get<OrderDetail>(
+      `/customer-orders/atc/v0/order/${orderNumber}/invoice`,
+      { params: { origin: "Pronto Connect" } }
+    );
+    return data;
+  },
+
+  /**
    * POST /customer-orders/atc/v0/order/{orderNumber}/revert-cancellation
    *
    * Total cancellation:
