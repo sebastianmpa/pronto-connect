@@ -36,6 +36,7 @@ export default function PartDetail() {
 
   const locationId = searchParams.get("locationid") ?? "";
   const po = searchParams.get("po") ?? "";
+  const orderNumber = searchParams.get("order_number") ?? "";
   const backTo = (location.state as { from?: string } | null)?.from ?? "/parts";
 
   const backLabel = backTo.startsWith("/orders/") ? "Back to Order" : "Back to Parts";
@@ -68,6 +69,7 @@ export default function PartDetail() {
           mfrId: mfr,
           partNumber,
           locationId,
+          orderNumber,
           force: true,
         });
 
@@ -102,7 +104,7 @@ export default function PartDetail() {
     return () => {
       cancelled = true;
     };
-  }, [mfr, partNumber, locationId]);
+  }, [mfr, partNumber, locationId, orderNumber]);
 
   return (
     <>

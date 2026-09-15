@@ -6,6 +6,7 @@ export interface PartDetailParams {
   mfr: string;
   partNumber: string;
   locationId: number | string;
+  orderNumber?: string;
 }
 
 export interface PartDetailBcParams {
@@ -210,6 +211,7 @@ export interface SupplierStockParams {
   mfrId: string;
   partNumber: string;
   locationId: number | string;
+  orderNumber?: string;
   force?: boolean;
 }
 

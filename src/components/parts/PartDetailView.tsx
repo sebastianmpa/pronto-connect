@@ -175,6 +175,16 @@ interface WarehouseEntry {
   [key: string]: unknown;
 }
 
+interface TrackingEntry {
+  number?: string;
+  url?: string | null;
+  status?: string | null;
+  eta?: string | null;
+  carrier?: string | null;
+  sku_match?: string | null;
+  [key: string]: unknown;
+}
+
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <svg
@@ -191,6 +201,10 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 function parseWarehouses(value: unknown): WarehouseEntry[] {
   return Array.isArray(value) ? (value as WarehouseEntry[]) : [];
+}
+
+function parseTrackings(value: unknown): TrackingEntry[] {
+  return Array.isArray(value) ? (value as TrackingEntry[]) : [];
 }
 
 // Rendered as a full-width table row (colSpan across every column) so the
@@ -227,6 +241,52 @@ function WarehousesPanel({ warehouses }: { warehouses: WarehouseEntry[] }) {
   );
 }
 
+function TrackingsPanel({ trackings }: { trackings: TrackingEntry[] }) {
+  const columns = Array.from(
+    trackings.reduce<Set<string>>((set, tracking) => {
+      Object.keys(tracking).forEach((key) => set.add(key));
+      return set;
+    }, new Set<string>()),
+  );
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-100 dark:border-white/[0.05]">
+      <table className="w-full min-w-max text-xs">
+        <thead className="bg-white dark:bg-white/[0.03]">
+          <tr>
+            {columns.map((column) => (
+              <th key={column} className="whitespace-nowrap px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">
+                {humanizeKey(column)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {trackings.map((tracking, rowIndex) => (
+            <tr key={`${tracking.number ?? "tracking"}-${rowIndex}`}>
+              {columns.map((column) => {
+                const value = tracking[column];
+
+                return (
+                  <td key={`${rowIndex}-${column}`} className="max-w-[360px] px-3 py-2 align-top text-gray-600 dark:text-gray-400">
+                    {column === "url" && typeof value === "string" && value.trim() ? (
+                      <a href={value} target="_blank" rel="noopener noreferrer" className="text-brand-600 underline dark:text-brand-400">
+                        Open tracking
+                      </a>
+                    ) : (
+                      displayValue(value)
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DynamicRowsTable({
   rows,
   emptyMessage,
@@ -256,6 +316,10 @@ function DynamicRowsTable({
   const warehousesColumn = columns.find(
     (column) => normalizeColumnKey(column) === "warehouses",
   );
+  const invoicesTrackingColumn = columns.find(
+    (column) => normalizeColumnKey(column) === "invoicestracking",
+  );
+  const expandableColumn = warehousesColumn ?? invoicesTrackingColumn;
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100 custom-scrollbar dark:border-white/[0.05]">
@@ -277,7 +341,11 @@ function DynamicRowsTable({
             const warehouses = warehousesColumn
               ? parseWarehouses(row[warehousesColumn])
               : [];
-            const isExpanded = expandedRow === rowIndex && warehouses.length > 0;
+            const trackings = invoicesTrackingColumn
+              ? parseTrackings(row[invoicesTrackingColumn])
+              : [];
+            const nestedRows = expandableColumn === invoicesTrackingColumn ? trackings : warehouses;
+            const isExpanded = expandedRow === rowIndex && nestedRows.length > 0;
 
             return (
               <Fragment key={rowIndex}>
@@ -287,8 +355,8 @@ function DynamicRowsTable({
                       key={`${rowIndex}-${column}`}
                       className="max-w-[320px] px-4 py-3 align-top text-gray-600 dark:text-gray-400"
                     >
-                      {column === warehousesColumn ? (
-                        warehouses.length > 0 && (
+                      {column === expandableColumn ? (
+                        nestedRows.length > 0 && (
                           <button
                             type="button"
                             onClick={() =>
@@ -297,7 +365,9 @@ function DynamicRowsTable({
                             className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
                           >
                             <ChevronIcon open={isExpanded} />
-                            {warehouses.length} warehouse{warehouses.length === 1 ? "" : "s"}
+                            {expandableColumn === invoicesTrackingColumn
+                              ? `${nestedRows.length} shipment${nestedRows.length === 1 ? "" : "s"}`
+                              : `${nestedRows.length} warehouse${nestedRows.length === 1 ? "" : "s"}`}
                           </button>
                         )
                       ) : (
@@ -310,7 +380,11 @@ function DynamicRowsTable({
                 {isExpanded && (
                   <tr className="bg-gray-50/60 dark:bg-white/[0.02]">
                     <td colSpan={columns.length} className="px-4 py-4">
-                      <WarehousesPanel warehouses={warehouses} />
+                      {expandableColumn === invoicesTrackingColumn ? (
+                        <TrackingsPanel trackings={trackings} />
+                      ) : (
+                        <WarehousesPanel warehouses={warehouses} />
+                      )}
                     </td>
                   </tr>
                 )}

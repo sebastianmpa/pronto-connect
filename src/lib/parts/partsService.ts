@@ -99,6 +99,7 @@ const partsService = {
           mfr: params.mfr.trim(),
           partnumber: params.partNumber.trim(),
           locationid: params.locationId,
+          ...(params.orderNumber?.trim() ? { order_number: params.orderNumber.trim() } : {}),
         },
       },
     );
@@ -120,6 +121,7 @@ const partsService = {
           mfr_id: params.mfrId.trim(),
           part_number: params.partNumber.trim(),
           locationid: params.locationId,
+          ...(params.orderNumber?.trim() ? { order_number: params.orderNumber.trim() } : {}),
           force: params.force ?? true,
         },
       },
