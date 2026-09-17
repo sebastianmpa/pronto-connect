@@ -18,9 +18,9 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function daysAgo(n: number): string {
+function monthsAgo(n: number): string {
   const d = new Date();
-  d.setDate(d.getDate() - n);
+  d.setMonth(d.getMonth() - n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -29,12 +29,18 @@ function formatDate(raw: string): string {
   return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
 }
 
+// Rango amplio usado SOLO cuando se busca por número de orden.
+// El backend exige startDate y endDate válidos aunque exista order_number.
+const ORDER_SEARCH_START_DATE = "2000-01-01";
+const ORDER_SEARCH_END_DATE = "2099-12-31";
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OrdersTable() {
   const navigate = useNavigate();
 
-  const [startDate, setStartDate] = useState(daysAgo(14));
+  // La pantalla sigue mostrando por defecto los últimos 2 meses.
+  const [startDate, setStartDate] = useState(monthsAgo(2));
   const [endDate, setEndDate] = useState(today());
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -58,12 +64,17 @@ export default function OrdersTable() {
 
   const openDetail = (reference: string | undefined) => {
     const rawNum = normalizeOrderNumber(reference);
+
     if (!rawNum) return;
+
     navigate(`/orders/${rawNum}`);
   };
 
   const downloadInvoice = async (item: OrderItem) => {
-    const rawNum = normalizeOrderNumber(item.reference ?? item.order_number);
+    const rawNum = normalizeOrderNumber(
+      item.reference ?? item.order_number
+    );
+
     if (!rawNum || downloadingOrder) return;
 
     setDownloadingOrder(rawNum);
@@ -73,7 +84,9 @@ export default function OrdersTable() {
       const detail = await ordersService.getOrderDetail(rawNum);
       await downloadOrderInvoicePdf(detail);
     } catch {
-      setError("Failed to download the invoice PDF. Please try again.");
+      setError(
+        "Failed to download the invoice PDF. Please try again."
+      );
     } finally {
       setDownloadingOrder(null);
     }
@@ -83,18 +96,44 @@ export default function OrdersTable() {
     async (page: number) => {
       setLoading(true);
       setError(null);
+
       try {
+        const trimmedOrderNumber = orderNumber.trim();
+
+        /*
+         * REGLA:
+         *
+         * 1. Sin número de orden:
+         *    usa las fechas seleccionadas por el usuario.
+         *
+         * 2. Con número de orden:
+         *    ignora las fechas visibles de la pantalla y envía un rango
+         *    amplio porque el backend exige startDate/endDate válidos.
+         *
+         * Así una búsqueda como 500106324 no queda limitada a los
+         * últimos 2 meses.
+         */
+        const effectiveStartDate = trimmedOrderNumber
+          ? ORDER_SEARCH_START_DATE
+          : startDate;
+
+        const effectiveEndDate = trimmedOrderNumber
+          ? ORDER_SEARCH_END_DATE
+          : endDate;
+
         const params: OrdersSearchParams = {
-          startDate,
-          endDate,
           limit,
           page,
           name,
           phone,
           email,
-          order_number: orderNumber,
+          order_number: trimmedOrderNumber,
+          startDate: effectiveStartDate,
+          endDate: effectiveEndDate,
         };
+
         const res = await ordersService.searchByDateRange(params);
+
         setItems(res.items);
         setTotalPages(res.totalPages);
         setTotalItems(res.totalItems);
@@ -105,7 +144,15 @@ export default function OrdersTable() {
         setLoading(false);
       }
     },
-    [startDate, endDate, limit, name, phone, email, orderNumber]
+    [
+      startDate,
+      endDate,
+      limit,
+      name,
+      phone,
+      email,
+      orderNumber,
+    ]
   );
 
   useEffect(() => {
@@ -122,7 +169,10 @@ export default function OrdersTable() {
   };
 
   const startIndex = (currentPage - 1) * limit + 1;
-  const endIndex = Math.min(startIndex + items.length - 1, totalItems);
+  const endIndex = Math.min(
+    startIndex + items.length - 1,
+    totalItems
+  );
 
   return (
     <div className="overflow-hidden bg-white dark:bg-white/[0.03] rounded-xl">
@@ -134,7 +184,10 @@ export default function OrdersTable() {
         {/* Date range */}
         <div className="flex gap-2 items-end">
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 dark:text-gray-400">Start date</label>
+            <label className="text-xs text-gray-500 dark:text-gray-400">
+              Start date
+            </label>
+
             <input
               type="date"
               value={startDate}
@@ -142,8 +195,12 @@ export default function OrdersTable() {
               className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             />
           </div>
+
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500 dark:text-gray-400">End date</label>
+            <label className="text-xs text-gray-500 dark:text-gray-400">
+              End date
+            </label>
+
             <input
               type="date"
               value={endDate}
@@ -153,7 +210,7 @@ export default function OrdersTable() {
           </div>
         </div>
 
-        {/* Search inputs */}
+        {/* Order number */}
         <input
           type="text"
           placeholder="Order #"
@@ -161,6 +218,8 @@ export default function OrdersTable() {
           onChange={(e) => setOrderNumber(e.target.value)}
           className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 w-32"
         />
+
+        {/* Customer name */}
         <input
           type="text"
           placeholder="Customer name"
@@ -168,6 +227,8 @@ export default function OrdersTable() {
           onChange={(e) => setName(e.target.value)}
           className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 w-40"
         />
+
+        {/* Email */}
         <input
           type="email"
           placeholder="Email"
@@ -175,6 +236,8 @@ export default function OrdersTable() {
           onChange={(e) => setEmail(e.target.value)}
           className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 w-48"
         />
+
+        {/* Phone */}
         <input
           type="text"
           placeholder="Phone"
@@ -185,22 +248,44 @@ export default function OrdersTable() {
 
         {/* Entries per page */}
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Show</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Show
+          </span>
+
           <div className="relative">
             <select
               value={limit}
-              onChange={(e) => setLimit(Number(e.target.value))}
+              onChange={(e) =>
+                setLimit(Number(e.target.value))
+              }
               className="h-9 rounded-lg border border-gray-300 bg-transparent py-1 pl-3 pr-7 text-sm text-gray-800 appearance-none shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
             >
               {[10, 25, 50, 100].map((v) => (
-                <option key={v} value={v} className="dark:bg-gray-900">
+                <option
+                  key={v}
+                  value={v}
+                  className="dark:bg-gray-900"
+                >
                   {v}
                 </option>
               ))}
             </select>
+
             <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-500">
-              <svg className="stroke-current" width="12" height="8" viewBox="0 0 16 16" fill="none">
-                <path d="M3.8335 5.9165L8.00016 10.0832L12.1668 5.9165" stroke="" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <svg
+                className="stroke-current"
+                width="12"
+                height="8"
+                viewBox="0 0 16 16"
+                fill="none"
+              >
+                <path
+                  d="M3.8335 5.9165L8.00016 10.0832L12.1668 5.9165"
+                  stroke=""
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </span>
           </div>
@@ -230,8 +315,20 @@ export default function OrdersTable() {
               fill="none"
               viewBox="0 0 24 24"
             >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8v8H4z"
+              />
             </svg>
           </div>
         ) : (
@@ -260,10 +357,14 @@ export default function OrdersTable() {
                 ))}
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan={8}
+                    className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+                  >
                     No orders found for the selected filters.
                   </td>
                 </TableRow>
@@ -273,57 +374,127 @@ export default function OrdersTable() {
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-xs font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">
                       {item.salesOrderId ?? "—"}
                     </TableCell>
+
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                       {formatDate(item.orderDate)}
                     </TableCell>
+
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
-                      {item.reference ?? item.order_number ?? "—"}
+                      {item.reference ??
+                        item.order_number ??
+                        "—"}
                     </TableCell>
+
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-xs text-gray-600 dark:border-white/[0.05] dark:text-gray-400">
                       {item.customerName}
                     </TableCell>
+
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-xs lowercase text-gray-600 break-all dark:border-white/[0.05] dark:text-gray-400">
                       {item.customerEmail}
                     </TableCell>
+
                     <TableCell className="border border-gray-100 px-2 py-2.5 text-center">
                       <span className="inline-flex items-center rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-500/10 dark:text-brand-400">
                         {item.source}
                       </span>
                     </TableCell>
+
                     {/* Detail */}
                     <TableCell className="border border-gray-100 px-1 py-2 text-center dark:border-white/[0.05]">
                       <button
                         type="button"
-                        onClick={() => openDetail(item.reference ?? item.order_number)}
+                        onClick={() =>
+                          openDetail(
+                            item.reference ??
+                              item.order_number
+                          )
+                        }
                         title="View order detail"
                         aria-label="View order detail"
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M12 5C6.47715 5 2 12 2 12C2 12 6.47715 19 12 19C17.5228 19 22 12 22 12C22 12 17.5228 5 12 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/>
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M12 5C6.47715 5 2 12 2 12C2 12 6.47715 19 12 19C17.5228 19 22 12 22 12C22 12 17.5228 5 12 5Z"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+
+                          <circle
+                            cx="12"
+                            cy="12"
+                            r="3"
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          />
                         </svg>
                       </button>
                     </TableCell>
 
-                    {/* Direct PDF invoice download */}
+                    {/* PDF */}
                     <TableCell className="border border-gray-100 px-1 py-2 text-center dark:border-white/[0.05]">
                       <button
                         type="button"
-                        onClick={() => downloadInvoice(item)}
-                        disabled={Boolean(downloadingOrder)}
+                        onClick={() =>
+                          downloadInvoice(item)
+                        }
+                        disabled={Boolean(
+                          downloadingOrder
+                        )}
                         title="Download invoice PDF"
                         aria-label="Download invoice PDF"
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 disabled:cursor-wait disabled:opacity-40 dark:hover:bg-brand-500/10"
                       >
-                        {downloadingOrder === normalizeOrderNumber(item.reference ?? item.order_number) ? (
-                          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                            <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
-                            <path className="opacity-75" d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        {downloadingOrder ===
+                        normalizeOrderNumber(
+                          item.reference ??
+                            item.order_number
+                        ) ? (
+                          <svg
+                            className="h-4 w-4 animate-spin"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="9"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                            />
+
+                            <path
+                              className="opacity-75"
+                              d="M21 12a9 9 0 0 0-9-9"
+                              stroke="currentColor"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                            />
                           </svg>
                         ) : (
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 3V15M12 15L7.5 10.5M12 15L16.5 10.5M5 20H19" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M12 3V15M12 15L7.5 10.5M12 15L16.5 10.5M5 20H19"
+                              stroke="currentColor"
+                              strokeWidth="1.7"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
                           </svg>
                         )}
                       </button>
@@ -341,8 +512,10 @@ export default function OrdersTable() {
         <div className="border border-t-0 rounded-b-xl border-gray-100 py-4 pl-[18px] pr-4 dark:border-white/[0.05]">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between">
             <p className="pb-3 text-sm font-medium text-center text-gray-500 border-b border-gray-100 dark:border-gray-800 dark:text-gray-400 xl:border-b-0 xl:pb-0 xl:text-left">
-              Showing {startIndex} to {endIndex} of {totalItems} entries
+              Showing {startIndex} to {endIndex} of{" "}
+              {totalItems} entries
             </p>
+
             <PaginationWithIcon
               totalPages={totalPages}
               initialPage={currentPage}
