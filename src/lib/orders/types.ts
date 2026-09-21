@@ -59,6 +59,8 @@ export interface OrderDetailItem {
   item_status: string;
   cancelled?: string | null;
   refunded?: string | null;
+  // Set by the order API when this item has an active partial cancellation.
+  revert_cancelation_allow?: string | boolean | null;
 
   // Inventory / allocation values returned by Customer Layer / IDEAL.
   ALLOC?: number | string | null;
@@ -287,6 +289,8 @@ export interface OrderDetail {
   status_text: string;
   cancelled?: string | null;
   refunded?: string | null;
+  // Set by the order API when the Revert cancellation action should be offered.
+  revert_cancelation_allow?: string | boolean | null;
   business_status: { name: string } | null;
   customer_service_status: CustomerServiceStatus | null;
 
