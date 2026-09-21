@@ -17,6 +17,22 @@ export interface AtcFormTypesResponse {
   form_types: string[];
 }
 
+export type AtcFormSubmissionType = "claim" | "return" | "cancellation";
+
+export interface AtcFormSubmissionResponse {
+  success: boolean;
+  id: number;
+  zohoTicket: string | null;
+  message?: string;
+}
+
+export interface Fac005ClaimConversionResponse {
+  success: true;
+  atcFormId: number;
+  fac005ClaimId: number;
+  caseNumber: string;
+}
+
 // ─── Client request ("atc form") record ────────────────────────────────────────
 
 export const ATC_FORM_STATUSES = ["pending", "processed", "cancelled"] as const;
@@ -37,6 +53,7 @@ export interface AtcFormItem {
   status: string | null;
   updated_at: string | null;
   updated_by: string | null;
+  detail?: Record<string, unknown> | null;
 }
 
 // ─── Paginated response ────────────────────────────────────────────────────────

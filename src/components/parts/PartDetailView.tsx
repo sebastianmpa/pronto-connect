@@ -227,6 +227,317 @@ function WarehousesPanel({ warehouses }: { warehouses: WarehouseEntry[] }) {
   );
 }
 
+interface PurchaseOrderShipment extends Record<string, unknown> {}
+
+function findColumnKey(
+  row: Record<string, unknown>,
+  normalizedNames: string[],
+): string | undefined {
+  return Object.keys(row).find((key) =>
+    normalizedNames.includes(normalizeColumnKey(key)),
+  );
+}
+
+function getShipmentValue(
+  shipment: PurchaseOrderShipment,
+  normalizedNames: string[],
+): unknown {
+  const key = findColumnKey(shipment, normalizedNames);
+  return key ? shipment[key] : undefined;
+}
+
+function getShipmentTrackingNumber(shipment: PurchaseOrderShipment): string {
+  const value = getShipmentValue(shipment, [
+    "number",
+    "trackingnumber",
+    "trackingno",
+    "tracking",
+  ]);
+
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function getShipmentTrackingUrl(shipment: PurchaseOrderShipment): string {
+  const value = getShipmentValue(shipment, [
+    "url",
+    "trackingurl",
+    "trackinglink",
+    "link",
+  ]);
+
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function getShipmentSkuMatch(shipment: PurchaseOrderShipment): string {
+  const value = getShipmentValue(shipment, [
+    "skumatch",
+    "matchsku",
+  ]);
+
+  return value === null || value === undefined ? "" : String(value).trim();
+}
+
+function isSkuMatchYes(shipment: PurchaseOrderShipment): boolean {
+  return getShipmentSkuMatch(shipment).toUpperCase() === "Y";
+}
+
+function parsePurchaseOrderShipments(value: unknown): PurchaseOrderShipment[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.filter(
+    (item): item is PurchaseOrderShipment =>
+      Boolean(item) && typeof item === "object" && !Array.isArray(item),
+  );
+}
+
+function isInvoicesTrackingColumn(column: string): boolean {
+  return [
+    "invoicestracking",
+    "invoicetracking",
+    "shipmentstracking",
+    "shipments",
+  ].includes(normalizeColumnKey(column));
+}
+
+function ShipmentTrackingTable({
+  shipments,
+}: {
+  shipments: PurchaseOrderShipment[];
+}) {
+  /*
+   * SKU Match = Y siempre se muestra primero.
+   * Se conserva el orden original dentro de cada grupo.
+   */
+  const sortedShipments = shipments
+    .map((shipment, originalIndex) => ({
+      shipment,
+      originalIndex,
+    }))
+    .sort((a, b) => {
+      const aMatch = isSkuMatchYes(a.shipment) ? 0 : 1;
+      const bMatch = isSkuMatchYes(b.shipment) ? 0 : 1;
+
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      return a.originalIndex - b.originalIndex;
+    })
+    .map(({ shipment }) => shipment);
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-100 bg-white custom-scrollbar dark:border-white/[0.05] dark:bg-gray-900">
+      <table className="w-full min-w-[850px] text-xs">
+        <thead className="bg-gray-50 dark:bg-white/[0.03]">
+          <tr>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Number
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Tracking #
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Status
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Eta
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Carrier
+            </th>
+            <th className="whitespace-nowrap px-3 py-2.5 text-left font-medium text-gray-500 dark:text-gray-400">
+              Sku Match
+            </th>
+          </tr>
+        </thead>
+
+        <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {sortedShipments.map((shipment, shipmentIndex) => {
+            const matched = isSkuMatchYes(shipment);
+            const trackingNumber = getShipmentTrackingNumber(shipment);
+            const trackingUrl = getShipmentTrackingUrl(shipment);
+
+            const status = getShipmentValue(shipment, ["status"]);
+            const eta = getShipmentValue(shipment, [
+              "eta",
+              "estimateddelivery",
+              "estimateddeliverydate",
+            ]);
+            const carrier = getShipmentValue(shipment, ["carrier"]);
+            const skuMatch = getShipmentSkuMatch(shipment);
+
+            return (
+              <tr
+                key={`${trackingNumber || "shipment"}-${shipmentIndex}`}
+                className={
+                  matched
+                    ? "bg-green-50 transition-colors hover:bg-green-100 dark:bg-green-500/10 dark:hover:bg-green-500/15"
+                    : "transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]"
+                }
+              >
+                <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                  {trackingNumber || "—"}
+                </td>
+
+                <td className="px-3 py-2.5">
+                  {trackingNumber && trackingUrl ? (
+                    <a
+                      href={trackingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={trackingUrl}
+                      className={`inline-flex items-center gap-1 font-medium underline underline-offset-2 ${
+                        matched
+                          ? "text-green-700 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                          : "text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                      }`}
+                    >
+                      {trackingNumber}
+                      <span aria-hidden="true">↗</span>
+                    </a>
+                  ) : (
+                    <span
+                      className={
+                        matched
+                          ? "font-medium text-green-700 dark:text-green-400"
+                          : "text-gray-600 dark:text-gray-400"
+                      }
+                    >
+                      {trackingNumber || "—"}
+                    </span>
+                  )}
+                </td>
+
+                <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                  {displayValue(status)}
+                </td>
+
+                <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                  {displayValue(eta)}
+                </td>
+
+                <td className="px-3 py-2.5 text-gray-600 dark:text-gray-400">
+                  {displayValue(carrier)}
+                </td>
+
+                <td
+                  className={`px-3 py-2.5 ${
+                    matched
+                      ? "font-bold text-green-700 dark:text-green-400"
+                      : "text-gray-600 dark:text-gray-400"
+                  }`}
+                >
+                  {skuMatch || "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function PurchaseOrdersTable({
+  rows,
+  emptyMessage,
+}: {
+  rows: PartDynamicRow[];
+  emptyMessage: string;
+}) {
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  if (!rows.length) {
+    return (
+      <div className="rounded-xl border border-gray-100 px-4 py-8 text-center text-sm text-gray-400 dark:border-white/[0.05]">
+        {emptyMessage}
+      </div>
+    );
+  }
+
+  const columns = orderColumns(
+    Array.from(
+      rows.reduce<Set<string>>((set, row) => {
+        Object.keys(row).forEach((key) => set.add(key));
+        return set;
+      }, new Set<string>()),
+    ),
+  );
+
+  const invoicesTrackingColumn = columns.find(isInvoicesTrackingColumn);
+
+  return (
+    <div className="overflow-x-auto rounded-xl border border-gray-100 custom-scrollbar dark:border-white/[0.05]">
+      <table className="w-full min-w-max text-sm">
+        <thead className="bg-gray-50 dark:bg-white/[0.03]">
+          <tr>
+            {columns.map((column) => (
+              <th
+                key={column}
+                className="whitespace-nowrap px-4 py-3 text-left font-medium text-gray-500 dark:text-gray-400"
+              >
+                {humanizeKey(column)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
+          {rows.map((row, rowIndex) => {
+            const shipments = invoicesTrackingColumn
+              ? parsePurchaseOrderShipments(row[invoicesTrackingColumn])
+              : [];
+
+            const isExpanded =
+              expandedRow === rowIndex && shipments.length > 0;
+
+            return (
+              <Fragment key={rowIndex}>
+                <tr className="hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+                  {columns.map((column) => (
+                    <td
+                      key={`${rowIndex}-${column}`}
+                      className="max-w-[320px] px-4 py-3 align-top text-gray-600 dark:text-gray-400"
+                    >
+                      {column === invoicesTrackingColumn ? (
+                        shipments.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedRow((current) =>
+                                current === rowIndex ? null : rowIndex,
+                              )
+                            }
+                            className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                          >
+                            <ChevronIcon open={isExpanded} />
+                            {shipments.length} shipment
+                            {shipments.length === 1 ? "" : "s"}
+                          </button>
+                        ) : (
+                          <span>—</span>
+                        )
+                      ) : (
+                        <span className="block break-words">
+                          {displayValue(row[column])}
+                        </span>
+                      )}
+                    </td>
+                  ))}
+                </tr>
+
+                {isExpanded && (
+                  <tr className="bg-gray-50/60 dark:bg-white/[0.02]">
+                    <td colSpan={columns.length} className="px-4 py-4">
+                      <ShipmentTrackingTable shipments={shipments} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function DynamicRowsTable({
   rows,
   emptyMessage,
@@ -574,7 +885,7 @@ export default function PartDetailView({
           title={`Purchase Orders (${part.purchase_orders_meta?.total ?? purchaseOrders.length})`}
           subtitle="If the API returns purchase_orders rows, every returned field is displayed."
         />
-        <DynamicRowsTable
+        <PurchaseOrdersTable
           rows={purchaseOrders}
           emptyMessage="No purchase orders returned for this part."
         />

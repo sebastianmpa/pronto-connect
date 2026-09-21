@@ -4,6 +4,9 @@ import type {
   AtcFormsParams,
   AtcFormsResponse,
   AtcFormTypesResponse,
+  AtcFormSubmissionResponse,
+  AtcFormSubmissionType,
+  Fac005ClaimConversionResponse,
 } from "./types";
 
 /**
@@ -47,6 +50,40 @@ const atcFormsService = {
       { status },
     );
 
+    return data;
+  },
+
+  /**
+   * Creates a Client Request from the ATC application. FormData preserves the
+   * optional image attachments accepted by Claim and Return submissions.
+   */
+  submit: async (
+    type: AtcFormSubmissionType,
+    payload: FormData,
+  ): Promise<AtcFormSubmissionResponse> => {
+    const pathByType: Record<AtcFormSubmissionType, string> = {
+      claim: "/claims/atc/v0/submit",
+      return: "/returns/atc/v0/submit",
+      cancellation: "/cancellations/atc/v0/submit",
+    };
+    const { data } = await apiClient.post<AtcFormSubmissionResponse>(
+      pathByType[type],
+      payload,
+      { headers: { "Content-Type": "multipart/form-data" } },
+    );
+
+    return data;
+  },
+
+  /** Converts a supported Claim Client Request into a FAC005 case. */
+  convertClaimToFac005: async (
+    id: number,
+    responsibleArea: string,
+  ): Promise<Fac005ClaimConversionResponse> => {
+    const { data } = await apiClient.post<Fac005ClaimConversionResponse>(
+      `/atc-forms/atc/v0/${id}/fac005-claim`,
+      { responsible_area: responsibleArea },
+    );
     return data;
   },
 };

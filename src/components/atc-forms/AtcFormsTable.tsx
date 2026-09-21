@@ -13,6 +13,8 @@ import atcFormsService from "../../lib/atc-forms/atcFormsService";
 import { ATC_FORM_STATUSES } from "../../lib/atc-forms/types";
 import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
 import AtcFormDetailModal from "./AtcFormDetailModal";
+import CreateAtcFormModal from "./CreateAtcFormModal";
+import ConvertClaimToFac005Modal from "./ConvertClaimToFac005Modal";
 import type { AtcFormItem, AtcFormsParams } from "../../lib/atc-forms/types";
 import { formatDate } from "../../utils/date";
 import { fetchAllPages } from "../../utils/paginatedData";
@@ -22,6 +24,14 @@ const EyeIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M12 5C6.47715 5 2 12 2 12C2 12 6.47715 19 12 19C17.5228 19 22 12 22 12C22 12 17.5228 5 12 5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
+  </svg>
+);
+
+const Fac005ConvertIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M14 3H6C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H18C19.1046 21 20 20.1046 20 19V9L14 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 3V9H20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 15L10.5 17.5L16.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -85,9 +95,14 @@ export default function AtcFormsTable() {
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<AtcFormItem | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [formTypes, setFormTypes] = useState<string[]>([]);
   const [formTypesLoading, setFormTypesLoading] = useState(true);
   const [formTypesError, setFormTypesError] = useState(false);
+  const [convertingClaimId, setConvertingClaimId] = useState<number | null>(null);
+  const [claimPendingConversion, setClaimPendingConversion] = useState<AtcFormItem | null>(null);
+  const [conversionError, setConversionError] = useState<string | null>(null);
+  const [conversionNotice, setConversionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setOrderNumber(sourceOrderId);
@@ -324,6 +339,35 @@ export default function AtcFormsTable() {
     }
   };
 
+  const convertClaimToFac005 = async (responsibleArea: string) => {
+    const item = claimPendingConversion;
+    if (!item) return;
+
+    setConvertingClaimId(item.id);
+    setError(null);
+    setConversionError(null);
+    setConversionNotice(null);
+
+    try {
+      const result = await atcFormsService.convertClaimToFac005(item.id, responsibleArea);
+      setConversionNotice(
+        `Claim #${item.id} was converted to FAC005 case ${result.caseNumber}.`,
+      );
+      setClaimPendingConversion(null);
+    } catch (conversionError: unknown) {
+      const message =
+        typeof conversionError === "object" &&
+        conversionError !== null &&
+        "response" in conversionError
+          ? (conversionError as { response?: { data?: { message?: string } } })
+              .response?.data?.message
+          : undefined;
+      setConversionError(message || "Unable to convert the Claim to FAC005.");
+    } finally {
+      setConvertingClaimId(null);
+    }
+  };
+
   const startIndex = totalItems === 0 ? 0 : (page - 1) * limit + 1;
   const endIndex =
     totalItems === 0
@@ -446,11 +490,30 @@ export default function AtcFormsTable() {
         >
           Search
         </button>
+        <button
+          type="button"
+          onClick={() => setCreateModalOpen(true)}
+          disabled={formTypesLoading}
+          title={
+            formTypesError
+              ? "Client Request types could not be loaded. Refresh to try again."
+              : "Create a Claim, Return, or Cancellation request"
+          }
+          className="h-9 rounded-lg bg-gray-800 px-4 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+        >
+          + Create request
+        </button>
       </form>
 
       {validationError && (
         <div className="border-x border-gray-100 bg-warning-50 px-4 py-3 text-sm text-warning-700 dark:border-white/[0.05] dark:bg-warning-500/10 dark:text-warning-400">
           {validationError}
+        </div>
+      )}
+
+      {conversionNotice && (
+        <div className="border-x border-gray-100 bg-success-50 px-4 py-3 text-sm text-success-700 dark:border-white/[0.05] dark:bg-success-500/10 dark:text-success-400">
+          {conversionNotice}
         </div>
       )}
 
@@ -480,7 +543,7 @@ export default function AtcFormsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order #", "Customer", "Type", "Created", "Status", ""].map((label) => (
+                {["Order #", "Customer", "Type", "Created", "Status", "Actions"].map((label) => (
                   <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                     <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
                   </TableCell>
@@ -525,14 +588,40 @@ export default function AtcFormsTable() {
                       </select>
                     </TableCell>
                     <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedRequest(item)}
-                        title="View request detail"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
-                      >
-                        <EyeIcon />
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        {item.form_type.toLowerCase() === "claim" && (
+                          <span className="group relative inline-flex">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConversionError(null);
+                                setClaimPendingConversion(item);
+                              }}
+                              disabled={convertingClaimId === item.id}
+                              aria-label={convertingClaimId === item.id ? "Converting Claim to FAC005" : "Convert Claim to FAC005"}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-brand-500 transition-colors hover:bg-brand-50 hover:text-brand-600 focus:outline-hidden focus:ring-3 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-brand-500/10"
+                            >
+                              <span className={convertingClaimId === item.id ? "animate-pulse" : undefined}>
+                                <Fac005ConvertIcon />
+                              </span>
+                            </button>
+                            <span
+                              role="tooltip"
+                              className="pointer-events-none absolute right-0 top-full z-20 mt-2 w-max max-w-48 rounded-md bg-gray-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 dark:bg-white dark:text-gray-900"
+                            >
+                              {convertingClaimId === item.id ? "Converting to FAC005…" : "Convert to FAC005"}
+                            </span>
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRequest(item)}
+                          title="View request detail"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-brand-50 hover:text-brand-500 dark:hover:bg-brand-500/10"
+                        >
+                          <EyeIcon />
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -569,6 +658,25 @@ export default function AtcFormsTable() {
             current && current.id === id ? { ...current, status: newStatus } : current,
           );
         }}
+      />
+      <CreateAtcFormModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        formTypes={formTypes}
+        initialOrderNumber={sourceOrderId || orderNumber}
+        onCreated={() => fetchRequests(1)}
+      />
+      <ConvertClaimToFac005Modal
+        claim={claimPendingConversion}
+        isConverting={convertingClaimId === claimPendingConversion?.id}
+        error={conversionError}
+        onClose={() => {
+          if (!convertingClaimId) {
+            setConversionError(null);
+            setClaimPendingConversion(null);
+          }
+        }}
+        onConfirm={(responsibleArea) => void convertClaimToFac005(responsibleArea)}
       />
     </div>
   );
