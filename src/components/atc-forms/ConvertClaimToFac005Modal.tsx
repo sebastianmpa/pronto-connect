@@ -18,7 +18,7 @@ interface ConvertClaimToFac005ModalProps {
   isConverting: boolean;
   error?: string | null;
   onClose: () => void;
-  onConfirm: (responsibleArea: string) => void;
+  onConfirm: (responsibleArea: string, comments: string) => void;
 }
 
 export default function ConvertClaimToFac005Modal({
@@ -29,9 +29,11 @@ export default function ConvertClaimToFac005Modal({
   onConfirm,
 }: ConvertClaimToFac005ModalProps) {
   const [responsibleArea, setResponsibleArea] = useState("");
+  const [comments, setComments] = useState("");
 
   useEffect(() => {
     setResponsibleArea("");
+    setComments("");
   }, [claim?.id]);
 
   return (
@@ -85,6 +87,23 @@ export default function ConvertClaimToFac005Modal({
             ))}
           </select>
         </div>
+        <div className="mt-4">
+          <label
+            htmlFor="fac005-comments"
+            className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            Additional note
+          </label>
+          <textarea
+            id="fac005-comments"
+            value={comments}
+            onChange={(event) => setComments(event.target.value)}
+            disabled={isConverting}
+            rows={4}
+            placeholder="Add a note for this FAC005 case"
+            className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
+          />
+        </div>
         {error && (
           <div className="mt-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
             {error}
@@ -103,7 +122,7 @@ export default function ConvertClaimToFac005Modal({
         </button>
         <button
           type="button"
-          onClick={() => onConfirm(responsibleArea)}
+          onClick={() => onConfirm(responsibleArea, comments)}
           disabled={isConverting || !responsibleArea}
           className="h-11 rounded-lg bg-gray-800 px-5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >

@@ -79,10 +79,11 @@ const atcFormsService = {
   convertClaimToFac005: async (
     id: number,
     responsibleArea: string,
+    comments: string,
   ): Promise<Fac005ClaimConversionResponse> => {
     const { data } = await apiClient.post<Fac005ClaimConversionResponse>(
       `/atc-forms/atc/v0/${id}/fac005-claim`,
-      { responsible_area: responsibleArea },
+      { responsible_area: responsibleArea, comments },
     );
     return data;
   },

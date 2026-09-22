@@ -339,7 +339,7 @@ export default function AtcFormsTable() {
     }
   };
 
-  const convertClaimToFac005 = async (responsibleArea: string) => {
+  const convertClaimToFac005 = async (responsibleArea: string, comments: string) => {
     const item = claimPendingConversion;
     if (!item) return;
 
@@ -349,7 +349,11 @@ export default function AtcFormsTable() {
     setConversionNotice(null);
 
     try {
-      const result = await atcFormsService.convertClaimToFac005(item.id, responsibleArea);
+      const result = await atcFormsService.convertClaimToFac005(
+        item.id,
+        responsibleArea,
+        comments,
+      );
       setConversionNotice(
         `Claim #${item.id} was converted to FAC005 case ${result.caseNumber}.`,
       );
@@ -676,7 +680,9 @@ export default function AtcFormsTable() {
             setClaimPendingConversion(null);
           }
         }}
-        onConfirm={(responsibleArea) => void convertClaimToFac005(responsibleArea)}
+        onConfirm={(responsibleArea, comments) =>
+          void convertClaimToFac005(responsibleArea, comments)
+        }
       />
     </div>
   );
