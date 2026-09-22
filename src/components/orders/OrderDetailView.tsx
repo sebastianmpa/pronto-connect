@@ -10,6 +10,7 @@ import OrderNotesPanel from "./OrderNotesPanel";
 import RevertCancellationModal, {
   type RevertCancellationTarget,
 } from "./RevertCancellationModal";
+import RevertBlockedModal from "./RevertBlockedModal";
 import partsService from "../../lib/parts/partsService";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type { CustomerHistory } from "../../lib/customers/types";
@@ -63,16 +64,8 @@ function isFinalCancelledStatus(value: unknown): boolean {
 }
 
 function isYesFlag(value: unknown): boolean {
+  if (value === true) return true;
   return String(value ?? "").trim().toUpperCase() === "Y";
-}
-
-function isCancelledValue(value: unknown): boolean {
-  const status = normalizeStatus(value);
-  return status === "cancelled" || status === "canceled";
-}
-
-function isRefundedValue(value: unknown): boolean {
-  return normalizeStatus(value) === "refunded";
 }
 
 function firstDisplayValue(...values: unknown[]): string {
@@ -147,6 +140,7 @@ export default function OrderDetailView({
   const location = useLocation();
 
   const [revertTarget, setRevertTarget] = useState<RevertCancellationTarget | null>(null);
+  const [revertBlockedMessage, setRevertBlockedMessage] = useState<string | null>(null);
 
   // The visible customer-service status must come from customer_service_status.status.
   // status_text/business_status can represent a different order/business status.
@@ -176,33 +170,25 @@ export default function OrderDetailView({
     isFinalCancelledStatus(order.status_text) ||
     isFinalCancelledStatus(order.business_status?.name);
 
-  // Revert actions are disabled after the order reaches On the way or Delivered.
-  const orderStatusCandidates = [
-    order.customer_service_status?.status,
-    order.customer_service_status?.order_status_internal_name,
-    order.status_text,
-    order.business_status?.name,
-    order.header?.status,
-  ];
+  // The API exposes this permission when there is an active cancellation record.
+  // BigCommerce status is checked only after the user clicks Revert.
+  const showOrderRevert = isYesFlag(order.revert_cancelation_allow);
 
-  const revertBlockedByOrderStatus = orderStatusCandidates.some((value) => {
-    const normalized = normalizeStatus(value);
-    return normalized === "on the way" || normalized === "delivered";
-  });
+  function getOrderRevertBlockReason(): string | null {
+    if (isYesFlag(order.cancelled) || isYesFlag(order.refunded)) {
+      return "This cancellation cannot be reverted because the current BigCommerce status is Cancelled or Refunded.";
+    }
 
-  // A refund means BigCommerce already processed the cancellation, so reversal is no longer offered.
-  const orderIsCancelled =
-    isYesFlag(order.cancelled) ||
-    orderStatusCandidates.some((value) => isCancelledValue(value));
+    return null;
+  }
 
-  const orderIsRefunded =
-    isYesFlag(order.refunded) ||
-    orderStatusCandidates.some((value) => isRefundedValue(value));
+  function getItemRevertBlockReason(item: OrderDetailType["items"][number]): string | null {
+    if (isYesFlag(item.cancelled) || isYesFlag(item.refunded)) {
+      return "This item cancellation cannot be reverted because its current BigCommerce status is Cancelled or Refunded.";
+    }
 
-  const showOrderRevert =
-    orderIsCancelled &&
-    !orderIsRefunded &&
-    !revertBlockedByOrderStatus;
+    return null;
+  }
 
   const [totalInvoicesByItem, setTotalInvoicesByItem] =
     useState<Record<string, number | null>>({});
@@ -232,6 +218,7 @@ export default function OrderDetailView({
             mfr,
             partNumber: partnumber,
             locationId: 4,
+            orderNumber: order.order_number,
           });
           const rawTotal = detail.total_invoices as unknown;
           const parsed = Number(rawTotal);
@@ -265,7 +252,7 @@ export default function OrderDetailView({
     }
 
     navigate(
-      `/parts/${encodeURIComponent(mfr)}/${encodeURIComponent(partnumber)}?locationid=4`,
+      `/parts/${encodeURIComponent(mfr)}/${encodeURIComponent(partnumber)}?locationid=4&order_number=${encodeURIComponent(order.order_number)}`,
       {
         state: {
           from:
@@ -277,10 +264,24 @@ export default function OrderDetailView({
   };
 
   const openOrderRevert = () => {
+    const blockReason = getOrderRevertBlockReason();
+
+    if (blockReason) {
+      setRevertBlockedMessage(blockReason);
+      return;
+    }
+
     setRevertTarget({ type: "Total" });
   };
 
   const openItemRevert = (item: OrderDetailType["items"][number]) => {
+    const blockReason = getItemRevertBlockReason(item);
+
+    if (blockReason) {
+      setRevertBlockedMessage(blockReason);
+      return;
+    }
+
     const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
     const itemStatus = resolveItemStatus(item);
 
@@ -394,6 +395,12 @@ export default function OrderDetailView({
         orderNumber={order.order_number}
         target={revertTarget}
         onReverted={onCancelled}
+      />
+
+      <RevertBlockedModal
+        isOpen={revertBlockedMessage !== null}
+        onClose={() => setRevertBlockedMessage(null)}
+        message={revertBlockedMessage ?? ""}
       />
 
       {/* Progress stepper */}
@@ -661,17 +668,7 @@ export default function OrderDetailView({
                         </td>
                         <td className="px-4 py-3 text-center">
                           {(() => {
-                            const itemStatus = resolveItemStatus(item);
-                            const itemIsCancelled =
-                              isYesFlag(item.cancelled) ||
-                              isCancelledValue(itemStatus);
-                            const itemIsRefunded =
-                              isYesFlag(item.refunded) ||
-                              isRefundedValue(itemStatus);
-                            const showItemRevert =
-                              itemIsCancelled &&
-                              !itemIsRefunded &&
-                              !revertBlockedByOrderStatus;
+                            const showItemRevert = isYesFlag(item.revert_cancelation_allow);
                             const { mfr, partnumber } = resolveIdealPartDetailInfo(item);
                             const hasRevertIdentifiers = Boolean(mfr && partnumber);
 
