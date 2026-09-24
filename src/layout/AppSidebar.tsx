@@ -220,6 +220,11 @@ const othersItems: NavItem[] = [
     path: "/contact-reasons",
   },
   {
+    icon: <TableIcon />,
+    name: "Status Dictionary",
+    path: "/status-dictionary",
+  },
+  {
     icon: <FilesIcon />,
     name: "Email Templates",
     path: "/email-templates",
