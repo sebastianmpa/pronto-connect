@@ -36,19 +36,9 @@ export const SMS_TEMPLATE_TAGS: SmsTemplateTag[] = [
     description: "Shipment tracking link",
   },
   {
-    value: "{{support_link}}",
-    label: "Support link",
-    description: "Customer support link",
-  },
-  {
     value: "{{return_link}}",
     label: "Return link",
     description: "Product return link",
-  },
-  {
-    value: "{{parts_lookup_link}}",
-    label: "Parts lookup link",
-    description: "Parts lookup link",
   },
   {
     value: "{{supplier_eta_date}}",

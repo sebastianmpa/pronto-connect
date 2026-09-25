@@ -17,6 +17,7 @@ import CancellationsList from "./pages/Cancellations/CancellationsList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
 import ClosureMethodsList from "./pages/ClosureMethods/ClosureMethodsList";
 import ContactReasonsList from "./pages/ContactReasons/ContactReasonsList";
+import StatusDictionaryList from "./pages/StatusDictionary/StatusDictionaryList";
 import CustomerContactsList from "./pages/CustomerContacts/CustomerContactsList";
 import CustomerContactDetail from "./pages/CustomerContacts/CustomerContactDetail";
 import PermissionsList from "./pages/Permissions/PermissionsList";
@@ -153,6 +154,7 @@ export default function App() {
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
             <Route path="/closure-methods" element={<ClosureMethodsList />} />
             <Route path="/contact-reasons" element={<ContactReasonsList />} />
+            <Route path="/status-dictionary" element={<StatusDictionaryList />} />
             <Route path="/customer-contacts" element={<CustomerContactsList />} />
             <Route path="/customer-contacts/:orderId" element={<CustomerContactDetail />} />
             <Route path="/permissions" element={<PermissionsList />} />
