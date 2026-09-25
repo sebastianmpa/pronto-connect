@@ -31,6 +31,69 @@ export interface Fac005ClaimConversionResponse {
   atcFormId: number;
   fac005ClaimId: number;
   caseNumber: string;
+  imageSync: Fac005ImageSyncRunSummary;
+}
+
+export interface Fac005ImageSyncSummary {
+  total: number;
+  synced: number;
+  failed: number;
+  pending: number;
+  processing: number;
+}
+
+export interface Fac005ImageSyncRunSummary {
+  total: number;
+  synced: number;
+  failed: number;
+  skipped: number;
+}
+
+export type AtcFormFac005Summary =
+  | { converted: false }
+  | {
+      converted: true;
+      claimId: number;
+      caseNumber: string;
+      status: string | null;
+      imageSync: Fac005ImageSyncSummary;
+    };
+
+export interface Fac005ClaimImage {
+  name: string;
+  status: string;
+  url: string | null;
+  error: string | null;
+  syncedAt: string | null;
+}
+
+export interface Fac005ClaimDetails {
+  claimId: number;
+  caseNumber: string;
+  status: string | null;
+  amountRefunded: number | string | null;
+  comments: string | null;
+  responsibleArea: string | null;
+  currentArea: string | null;
+  convertedAt: string | null;
+  convertedBy: string | null;
+  imageSync: Fac005ImageSyncSummary;
+  images: Fac005ClaimImage[];
+}
+
+export interface Fac005ClaimDetailsResponse {
+  success: true;
+  atcFormId: number;
+  converted: boolean;
+  fac005: Fac005ClaimDetails | null;
+}
+
+export interface Fac005ImageRetryResponse {
+  success: true;
+  atcFormId: number;
+  fac005ClaimId: number;
+  caseNumber: string;
+  imageSync: Fac005ImageSyncRunSummary;
 }
 
 // ─── Client request ("atc form") record ────────────────────────────────────────
@@ -54,6 +117,8 @@ export interface AtcFormItem {
   updated_at: string | null;
   updated_by: string | null;
   detail?: Record<string, unknown> | null;
+  /** FAC005 conversion summary, supplied by the paginated endpoint. */
+  fac005?: AtcFormFac005Summary;
 }
 
 // ─── Paginated response ────────────────────────────────────────────────────────

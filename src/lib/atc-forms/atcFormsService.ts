@@ -7,6 +7,8 @@ import type {
   AtcFormSubmissionResponse,
   AtcFormSubmissionType,
   Fac005ClaimConversionResponse,
+  Fac005ClaimDetailsResponse,
+  Fac005ImageRetryResponse,
 } from "./types";
 
 /**
@@ -84,6 +86,22 @@ const atcFormsService = {
     const { data } = await apiClient.post<Fac005ClaimConversionResponse>(
       `/atc-forms/atc/v0/${id}/fac005-claim`,
       { responsible_area: responsibleArea, comments },
+    );
+    return data;
+  },
+
+  /** Returns the FAC005 case, its image-sync summary, and attachment links. */
+  getFac005ClaimDetails: async (id: number): Promise<Fac005ClaimDetailsResponse> => {
+    const { data } = await apiClient.get<Fac005ClaimDetailsResponse>(
+      `/atc-forms/atc/v0/${id}/fac005-claim`,
+    );
+    return data;
+  },
+
+  /** Retries only the original Claim-form images that are not yet synchronized. */
+  retryFac005ClaimImages: async (id: number): Promise<Fac005ImageRetryResponse> => {
+    const { data } = await apiClient.post<Fac005ImageRetryResponse>(
+      `/atc-forms/atc/v0/${id}/fac005-claim/images/retry`,
     );
     return data;
   },

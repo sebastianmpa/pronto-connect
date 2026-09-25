@@ -357,6 +357,28 @@ export default function AtcFormsTable() {
       setConversionNotice(
         `Claim #${item.id} was converted to FAC005 case ${result.caseNumber}.`,
       );
+      setItems((current) =>
+        current.map((row) =>
+          row.id === item.id
+            ? {
+                ...row,
+                fac005: {
+                  converted: true,
+                  claimId: result.fac005ClaimId,
+                  caseNumber: result.caseNumber,
+                  status: null,
+                  imageSync: {
+                    total: result.imageSync.total,
+                    synced: result.imageSync.synced,
+                    failed: result.imageSync.failed,
+                    pending: 0,
+                    processing: 0,
+                  },
+                },
+              }
+            : row,
+        ),
+      );
       setClaimPendingConversion(null);
     } catch (conversionError: unknown) {
       const message =
@@ -547,7 +569,7 @@ export default function AtcFormsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order #", "Customer", "Type", "Created", "Status", "Actions"].map((label) => (
+                {["Order #", "Customer", "Type", "Created", "Status", "FAC005", "Actions"].map((label) => (
                   <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                     <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
                   </TableCell>
@@ -557,7 +579,7 @@ export default function AtcFormsTable() {
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     No client requests found for the selected filters.
                   </td>
                 </TableRow>
@@ -591,9 +613,31 @@ export default function AtcFormsTable() {
                         ))}
                       </select>
                     </TableCell>
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
+                      {item.fac005?.converted ? (
+                        <div>
+                          <span
+                            className={
+                              item.fac005.imageSync.failed > 0 || item.fac005.imageSync.pending > 0
+                                ? "inline-flex rounded-full bg-warning-50 px-2.5 py-1 text-xs font-semibold text-warning-700 dark:bg-warning-500/10 dark:text-warning-400"
+                                : "inline-flex rounded-full bg-success-50 px-2.5 py-1 text-xs font-semibold text-success-700 dark:bg-success-500/10 dark:text-success-400"
+                            }
+                          >
+                            {item.fac005.caseNumber || "FAC005"}
+                          </span>
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            {item.fac005.imageSync.synced}/{item.fac005.imageSync.total} images
+                            {item.fac005.imageSync.failed > 0 &&
+                              " · " + item.fac005.imageSync.failed + " failed"}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="border border-gray-100 px-3 py-3 text-center dark:border-white/[0.05]">
                       <div className="flex items-center justify-center gap-1">
-                        {item.form_type.toLowerCase() === "claim" && (
+                        {item.form_type.toLowerCase() === "claim" && !item.fac005?.converted && (
                           <span className="group relative inline-flex">
                             <button
                               type="button"
@@ -661,6 +705,9 @@ export default function AtcFormsTable() {
           setSelectedRequest((current) =>
             current && current.id === id ? { ...current, status: newStatus } : current,
           );
+        }}
+        onFac005Updated={() => {
+          void fetchRequests(page);
         }}
       />
       <CreateAtcFormModal

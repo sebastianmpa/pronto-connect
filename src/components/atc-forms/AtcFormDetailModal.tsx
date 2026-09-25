@@ -7,7 +7,11 @@ import atcFormsService from "../../lib/atc-forms/atcFormsService";
 import ordersService from "../../lib/orders/ordersService";
 import { ATC_FORM_STATUSES } from "../../lib/atc-forms/types";
 import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
-import type { AtcFormItem } from "../../lib/atc-forms/types";
+import type {
+  AtcFormItem,
+  Fac005ClaimDetails,
+  Fac005ImageSyncSummary,
+} from "../../lib/atc-forms/types";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import { formatDateTime } from "../../utils/date";
 
@@ -115,6 +119,37 @@ interface AtcFormDetailModalProps {
   onClose: () => void;
   request: AtcFormItem | null;
   onStatusChanged: (id: number, status: string) => void;
+  onFac005Updated?: () => void;
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "response" in error) {
+    const response = (error as { response?: { data?: { message?: unknown } } })
+      .response;
+    if (typeof response?.data?.message === "string" && response.data.message.trim()) {
+      return response.data.message;
+    }
+  }
+
+  return fallback;
+}
+
+function imageSyncLabel(summary: Fac005ImageSyncSummary): string {
+  return summary.total === 0
+    ? "No form images"
+    : summary.synced + "/" + summary.total + " images synchronized";
+}
+
+function imageStatusClass(status: string): string {
+  if (status.toLowerCase() === "synced") {
+    return "bg-success-50 text-success-700 dark:bg-success-500/10 dark:text-success-400";
+  }
+
+  if (status.toLowerCase() === "failed") {
+    return "bg-error-50 text-error-700 dark:bg-error-500/10 dark:text-error-400";
+  }
+
+  return "bg-warning-50 text-warning-700 dark:bg-warning-500/10 dark:text-warning-400";
 }
 
 export default function AtcFormDetailModal({
@@ -122,6 +157,7 @@ export default function AtcFormDetailModal({
   onClose,
   request,
   onStatusChanged,
+  onFac005Updated,
 }: AtcFormDetailModalProps) {
   const [status, setStatus] = useState<string>("pending");
   const [saving, setSaving] = useState(false);
@@ -129,15 +165,55 @@ export default function AtcFormDetailModal({
   const [error, setError] = useState<string | null>(null);
   const [cancellationOrder, setCancellationOrder] = useState<OrderDetailType | null>(null);
   const [cancellationWasSubmitted, setCancellationWasSubmitted] = useState(false);
+  const [fac005Details, setFac005Details] = useState<Fac005ClaimDetails | null>(null);
+  const [fac005Loading, setFac005Loading] = useState(false);
+  const [fac005Error, setFac005Error] = useState<string | null>(null);
+  const [retryingImages, setRetryingImages] = useState(false);
+  const requestId = request?.id;
+  const requestStatus = request?.status;
+  const requestFormType = request?.form_type;
 
   useEffect(() => {
-    if (!isOpen || !request) return;
+    if (!isOpen || !requestId) return;
 
-    setStatus(request.status ?? "pending");
+    setStatus(requestStatus ?? "pending");
     setError(null);
     setCancellationOrder(null);
     setCancellationWasSubmitted(false);
-  }, [isOpen, request?.id]);
+  }, [isOpen, requestId, requestStatus]);
+
+  useEffect(() => {
+    if (!isOpen || !requestId || normalizeFormType(requestFormType) !== "claim") {
+      setFac005Details(null);
+      setFac005Loading(false);
+      setFac005Error(null);
+      return;
+    }
+
+    let active = true;
+    setFac005Loading(true);
+    setFac005Error(null);
+
+    atcFormsService
+      .getFac005ClaimDetails(requestId)
+      .then((response) => {
+        if (active) setFac005Details(response.fac005);
+      })
+      .catch((fac005RequestError: unknown) => {
+        if (!active) return;
+        setFac005Details(null);
+        setFac005Error(
+          errorMessage(fac005RequestError, "Could not load FAC005 details."),
+        );
+      })
+      .finally(() => {
+        if (active) setFac005Loading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, requestId, requestFormType]);
 
   const cancellationDefaults = useMemo(
     () => extractCancellationDefaults(request?.ticket_text ?? ""),
@@ -218,6 +294,29 @@ export default function AtcFormDetailModal({
     }
   };
 
+  const retryFac005Images = async () => {
+    if (!request) return;
+
+    setRetryingImages(true);
+    setFac005Error(null);
+
+    try {
+      await atcFormsService.retryFac005ClaimImages(request.id);
+      const response = await atcFormsService.getFac005ClaimDetails(request.id);
+      setFac005Details(response.fac005);
+      onFac005Updated?.();
+    } catch (retryError: unknown) {
+      setFac005Error(
+        errorMessage(
+          retryError,
+          "Could not synchronize the Claim images. Please try again.",
+        ),
+      );
+    } finally {
+      setRetryingImages(false);
+    }
+  };
+
   return (
     <>
       <Modal
@@ -286,6 +385,160 @@ export default function AtcFormDetailModal({
                 }}
               />
             </div>
+
+            {fac005Loading && (
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm text-gray-500 dark:border-white/[0.06] dark:bg-white/[0.03] dark:text-gray-400">
+                Loading FAC005 details…
+              </div>
+            )}
+
+            {fac005Details && (
+              <section className="rounded-xl border border-brand-100 bg-brand-50/40 p-4 dark:border-brand-500/20 dark:bg-brand-500/5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
+                      FAC005 case
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-gray-800 dark:text-white/90">
+                      {fac005Details.caseNumber}
+                    </p>
+                  </div>
+                  {fac005Details.status && (
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold capitalize text-gray-700 shadow-sm dark:bg-gray-900 dark:text-gray-300">
+                      {fac005Details.status}
+                    </span>
+                  )}
+                </div>
+
+                <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Amount refunded
+                    </dt>
+                    <dd className="mt-0.5 text-gray-800 dark:text-white/90">
+                      {fac005Details.amountRefunded ?? "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Responsible area
+                    </dt>
+                    <dd className="mt-0.5 text-gray-800 dark:text-white/90">
+                      {fac005Details.responsibleArea ?? "—"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      Current area
+                    </dt>
+                    <dd className="mt-0.5 text-gray-800 dark:text-white/90">
+                      {fac005Details.currentArea ?? "—"}
+                    </dd>
+                  </div>
+                  {fac005Details.convertedAt && (
+                    <div>
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                        Converted
+                      </dt>
+                      <dd className="mt-0.5 text-gray-800 dark:text-white/90">
+                        {formatDateTime(fac005Details.convertedAt)}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+
+                {fac005Details.comments && (
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                      FAC005 comments
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+                      {fac005Details.comments}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-4 border-t border-brand-100 pt-4 dark:border-brand-500/20">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                        Claim form images
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {imageSyncLabel(fac005Details.imageSync)}
+                        {fac005Details.imageSync.failed > 0 &&
+                          " · " + fac005Details.imageSync.failed + " failed"}
+                        {fac005Details.imageSync.pending > 0 &&
+                          " · " + fac005Details.imageSync.pending + " pending"}
+                      </p>
+                    </div>
+                    {(fac005Details.imageSync.failed > 0 ||
+                      fac005Details.imageSync.pending > 0) && (
+                      <button
+                        type="button"
+                        onClick={() => void retryFac005Images()}
+                        disabled={retryingImages}
+                        className="h-9 rounded-lg border border-brand-200 bg-white px-3 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-500/30 dark:bg-gray-900 dark:text-brand-400 dark:hover:bg-brand-500/10"
+                      >
+                        {retryingImages ? "Synchronizing…" : "Retry image sync"}
+                      </button>
+                    )}
+                  </div>
+
+                  {fac005Details.images.length > 0 ? (
+                    <ul className="mt-3 space-y-2">
+                      {fac005Details.images.map((image, index) => (
+                        <li
+                          key={image.name + "-" + index}
+                          className="rounded-lg bg-white/80 px-3 py-2 dark:bg-gray-900/70"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="break-all text-sm text-gray-700 dark:text-gray-300">
+                              {image.name}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={
+                                  "rounded-full px-2 py-0.5 text-xs font-semibold capitalize " +
+                                  imageStatusClass(image.status)
+                                }
+                              >
+                                {image.status}
+                              </span>
+                              {image.url && (
+                                <a
+                                  href={image.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-semibold text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
+                                >
+                                  View image
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                          {image.error && (
+                            <p className="mt-1 text-xs text-error-600 dark:text-error-400">
+                              {image.error}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      No images were submitted with this Claim form.
+                    </p>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {fac005Error && (
+              <div className="rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                {fac005Error}
+              </div>
+            )}
 
             {isCancellationRequest &&
               (cancellationDefaults.reason || cancellationDefaults.comment) && (
