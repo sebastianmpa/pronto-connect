@@ -45,4 +45,9 @@ export const SMS_TEMPLATE_TAGS: SmsTemplateTag[] = [
     label: "Supplier ETA date",
     description: "Estimated supplier arrival date",
   },
+  {
+    value: "{{internal_eta}}",
+    label: "Internal ETA",
+    description: "Internal estimated arrival date",
+  },
 ];

@@ -5,7 +5,7 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import TextArea from "../form/input/TextArea";
 import customerMessagesDictionaryService from "../../lib/customer-messages-dictionary/customerMessagesDictionaryService";
-import { SMS_TEMPLATE_TAGS } from "../../lib/sms-templates/smsTemplateTags";
+import { CUSTOMER_MESSAGE_TEMPLATE_TAGS } from "../../lib/customer-messages-dictionary/customerMessageTemplateTags";
 import type { CustomerMessageDictionaryItem } from "../../lib/customer-messages-dictionary/types";
 
 interface CustomerMessageDictionaryFormModalProps {
@@ -134,7 +134,7 @@ function VariableMessageField({
         placeholder={placeholder}
       />
       <div className="mt-2 flex flex-wrap gap-2">
-        {SMS_TEMPLATE_TAGS.map((tag) => (
+        {CUSTOMER_MESSAGE_TEMPLATE_TAGS.map((tag) => (
           <button
             key={tag.value}
             type="button"

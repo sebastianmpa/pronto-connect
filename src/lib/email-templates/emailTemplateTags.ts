@@ -10,6 +10,11 @@ export interface EmailTemplateTag {
  */
 export const EMAIL_TEMPLATE_TAGS: EmailTemplateTag[] = [
   {
+    value: "{{internal_eta}}",
+    label: "Internal ETA",
+    description: "Internal estimated arrival date",
+  },
+  {
     value: "{{customer_first_name}}",
     label: "Customer first name",
     description: "Customer first name.",
