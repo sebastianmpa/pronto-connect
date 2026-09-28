@@ -3,6 +3,7 @@ import type {
   CustomerMessageDictionaryItem,
   CustomerMessageDictionaryPayload,
   CustomerMessagesDictionaryApiResponse,
+  CustomerMessagesDictionaryDisplayNamesResponse,
   CustomerMessagesDictionaryParams,
   CustomerMessagesDictionaryResponse,
 } from "./types";
@@ -49,6 +50,16 @@ const customerMessagesDictionaryService = {
       { params }
     );
     return normalizePaginatedResponse(data);
+  },
+
+  /**
+   * GET /customer-messages-dictionary/atc/v0/display-names
+   */
+  getDisplayNames: async (): Promise<string[]> => {
+    const { data } = await apiClient.get<CustomerMessagesDictionaryDisplayNamesResponse>(
+      "/customer-messages-dictionary/atc/v0/display-names"
+    );
+    return data.data ?? [];
   },
 
   /**

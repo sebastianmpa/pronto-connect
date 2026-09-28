@@ -17,6 +17,7 @@ export interface CustomerMessageDictionaryItem {
 // ─── Query params ────────────────────────────────────────────────────────────
 
 export interface CustomerMessagesDictionaryParams {
+  display_name?: string;
   page?: number;
   limit?: number;
 }
@@ -31,6 +32,10 @@ export interface CustomerMessagesDictionaryMeta {
 export interface CustomerMessagesDictionaryResponse {
   items: CustomerMessageDictionaryItem[];
   meta: CustomerMessagesDictionaryMeta;
+}
+
+export interface CustomerMessagesDictionaryDisplayNamesResponse {
+  data: string[];
 }
 
 /**

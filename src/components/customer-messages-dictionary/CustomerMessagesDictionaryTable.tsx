@@ -29,6 +29,8 @@ const TrashIcon = () => (
 export default function CustomerMessagesDictionaryTable() {
   const [limit, setLimit] = useState(10);
   const [page, setPage] = useState(1);
+  const [displayName, setDisplayName] = useState("");
+  const [displayNameOptions, setDisplayNameOptions] = useState<string[]>([]);
 
   const [items, setItems] = useState<CustomerMessageDictionaryItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -48,7 +50,11 @@ export default function CustomerMessagesDictionaryTable() {
       setLoading(true);
       setError(null);
       try {
-        const res = await customerMessagesDictionaryService.getPaginated({ page: p, limit });
+        const res = await customerMessagesDictionaryService.getPaginated({
+          page: p,
+          limit,
+          ...(displayName && { display_name: displayName }),
+        });
         setItems(res.items ?? []);
         setTotalPages(res.meta.total_pages ?? 1);
         setTotalItems(res.meta.total ?? 0);
@@ -60,12 +66,29 @@ export default function CustomerMessagesDictionaryTable() {
         setLoading(false);
       }
     },
-    [limit]
+    [displayName, limit]
   );
 
   useEffect(() => {
     fetchEntries(1);
   }, [fetchEntries]);
+
+  useEffect(() => {
+    let active = true;
+
+    customerMessagesDictionaryService
+      .getDisplayNames()
+      .then((displayNames) => {
+        if (active) setDisplayNameOptions(displayNames);
+      })
+      .catch(() => {
+        if (active) setDisplayNameOptions([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const openCreate = () => {
     setEditingEntry(null);
@@ -96,6 +119,28 @@ export default function CustomerMessagesDictionaryTable() {
     <div className="overflow-hidden bg-white dark:bg-white/[0.03] rounded-xl">
       {/* ── Filters ── */}
       <div className="flex flex-col gap-3 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="display-name-filter" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            Display Name
+          </label>
+          <select
+            id="display-name-filter"
+            value={displayName}
+            onChange={(event) => {
+              setDisplayName(event.target.value);
+              setPage(1);
+            }}
+            className="h-9 w-40 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+          >
+            <option value="">All Display Names</option>
+            {displayNameOptions.map((option) => (
+              <option key={option} value={option} className="dark:bg-gray-900">
+                {option}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-500 dark:text-gray-400">Show</span>
           <div className="relative">
