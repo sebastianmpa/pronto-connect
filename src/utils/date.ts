@@ -5,6 +5,13 @@ function pad(n: number): string {
 /** MM/DD/YYYY — falls back to "—" for empty input, or the raw string if it can't be parsed. */
 export function formatDate(raw: string | null | undefined): string {
   if (!raw) return "—";
+
+  const dateOnly = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    const [, year, month, day] = dateOnly;
+    return `${month}/${day}/${year}`;
+  }
+
   const d = new Date(raw);
   if (isNaN(d.getTime())) return raw;
   return `${pad(d.getMonth() + 1)}/${pad(d.getDate())}/${d.getFullYear()}`;
