@@ -42,6 +42,9 @@ function formatDate(raw: string): string {
   return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
 }
 
+const ORDER_SEARCH_START_DATE = "2000-01-01";
+const ORDER_SEARCH_END_DATE = "2099-12-31";
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OrdersTable() {
@@ -155,17 +158,21 @@ export default function OrdersTable() {
           return;
         }
 
-        const params: OrdersSearchParams = { limit, page };
+        const params: OrdersSearchParams = {
+          limit,
+          page,
+          startDate: trimmedOrderNumber
+            ? ORDER_SEARCH_START_DATE
+            : startDate.trim(),
+          endDate: trimmedOrderNumber
+            ? ORDER_SEARCH_END_DATE
+            : endDate.trim(),
+        };
 
         if (name.trim()) params.name = name.trim();
         if (phone.trim()) params.phone = phone.trim();
         if (email.trim()) params.email = email.trim();
-        if (trimmedOrderNumber) {
-          params.order_number = trimmedOrderNumber;
-        } else {
-          if (startDate.trim()) params.startDate = startDate.trim();
-          if (endDate.trim()) params.endDate = endDate.trim();
-        }
+        if (trimmedOrderNumber) params.order_number = trimmedOrderNumber;
 
         const res = await ordersService.searchByDateRange(params);
 
