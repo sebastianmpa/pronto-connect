@@ -155,22 +155,17 @@ export default function OrdersTable() {
           return;
         }
 
-        const params: OrdersSearchParams = {
-          limit,
-          page,
-          ...(name.trim() ? { name: name.trim() } : {}),
-          ...(phone.trim() ? { phone: phone.trim() } : {}),
-          ...(email.trim() ? { email: email.trim() } : {}),
-          ...(trimmedOrderNumber
-            ? { order_number: trimmedOrderNumber }
-            : {}),
-          ...(!trimmedOrderNumber && startDate.trim()
-            ? { startDate: startDate.trim() }
-            : {}),
-          ...(!trimmedOrderNumber && endDate.trim()
-            ? { endDate: endDate.trim() }
-            : {}),
-        };
+        const params: OrdersSearchParams = { limit, page };
+
+        if (name.trim()) params.name = name.trim();
+        if (phone.trim()) params.phone = phone.trim();
+        if (email.trim()) params.email = email.trim();
+        if (trimmedOrderNumber) {
+          params.order_number = trimmedOrderNumber;
+        } else {
+          if (startDate.trim()) params.startDate = startDate.trim();
+          if (endDate.trim()) params.endDate = endDate.trim();
+        }
 
         const res = await ordersService.searchByDateRange(params);
 
