@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import flatpickr from "flatpickr";
 import { useNavigate } from "react-router";
 import {
   Table,
@@ -11,17 +12,29 @@ import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon
 import ordersService from "../../lib/orders/ordersService";
 import type { OrderItem, OrdersSearchParams } from "../../lib/orders/types";
 import { downloadOrderInvoicePdf } from "../../lib/orders/orderInvoicePdf";
+import { CalendarAltIcon } from "../../icons";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function today(): string {
-  return new Date().toISOString().slice(0, 10);
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
-function monthsAgo(n: number): string {
-  const d = new Date();
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 10);
+function today(): string {
+  return formatLocalDate(new Date());
+}
+
+function currentMonthStart(): Date {
+  const date = new Date();
+  date.setDate(1);
+  return date;
+}
+
+function firstDayOfCurrentMonth(): string {
+  return formatLocalDate(currentMonthStart());
 }
 
 function formatDate(raw: string): string {
@@ -29,19 +42,13 @@ function formatDate(raw: string): string {
   return isNaN(d.getTime()) ? raw : d.toLocaleDateString();
 }
 
-// Rango amplio usado SOLO cuando se busca por número de orden.
-// El backend exige startDate y endDate válidos aunque exista order_number.
-const ORDER_SEARCH_START_DATE = "2000-01-01";
-const ORDER_SEARCH_END_DATE = "2099-12-31";
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function OrdersTable() {
   const navigate = useNavigate();
 
-  // La pantalla sigue mostrando por defecto los últimos 2 meses.
-  const [startDate, setStartDate] = useState(monthsAgo(2));
-  const [endDate, setEndDate] = useState(today());
+  const [startDate, setStartDate] = useState(firstDayOfCurrentMonth);
+  const [endDate, setEndDate] = useState(today);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -55,6 +62,38 @@ export default function OrdersTable() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadingOrder, setDownloadingOrder] = useState<string | null>(null);
+  const startDateInputRef = useRef<HTMLInputElement>(null);
+  const endDateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!startDateInputRef.current) return;
+
+    const picker = flatpickr(startDateInputRef.current, {
+      defaultDate: currentMonthStart(),
+      dateFormat: "m/d/Y",
+      disableMobile: true,
+      onChange: ([date]) => {
+        if (date) setStartDate(formatLocalDate(date));
+      },
+    });
+
+    return () => picker.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!endDateInputRef.current) return;
+
+    const picker = flatpickr(endDateInputRef.current, {
+      defaultDate: new Date(),
+      dateFormat: "m/d/Y",
+      disableMobile: true,
+      onChange: ([date]) => {
+        if (date) setEndDate(formatLocalDate(date));
+      },
+    });
+
+    return () => picker.destroy();
+  }, []);
 
   const normalizeOrderNumber = (reference: string | undefined) =>
     (reference ?? "")
@@ -81,7 +120,7 @@ export default function OrdersTable() {
     setError(null);
 
     try {
-      const detail = await ordersService.getInvoiceDetail(rawNum);
+      const detail = await ordersService.getOrderDetail(rawNum);
       await downloadOrderInvoicePdf(detail);
     } catch {
       setError(
@@ -99,37 +138,34 @@ export default function OrdersTable() {
 
       try {
         const trimmedOrderNumber = orderNumber.trim();
+        const hasSearchCriteria = [
+          startDate,
+          endDate,
+          name,
+          phone,
+          email,
+          trimmedOrderNumber,
+        ].some((value) => value.trim());
 
-        /*
-         * REGLA:
-         *
-         * 1. Sin número de orden:
-         *    usa las fechas seleccionadas por el usuario.
-         *
-         * 2. Con número de orden:
-         *    ignora las fechas visibles de la pantalla y envía un rango
-         *    amplio porque el backend exige startDate/endDate válidos.
-         *
-         * Así una búsqueda como 500106324 no queda limitada a los
-         * últimos 2 meses.
-         */
-        const effectiveStartDate = trimmedOrderNumber
-          ? ORDER_SEARCH_START_DATE
-          : startDate;
-
-        const effectiveEndDate = trimmedOrderNumber
-          ? ORDER_SEARCH_END_DATE
-          : endDate;
+        if (!hasSearchCriteria) {
+          setItems([]);
+          setTotalPages(0);
+          setTotalItems(0);
+          setCurrentPage(1);
+          return;
+        }
 
         const params: OrdersSearchParams = {
           limit,
           page,
-          name,
-          phone,
-          email,
-          order_number: trimmedOrderNumber,
-          startDate: effectiveStartDate,
-          endDate: effectiveEndDate,
+          ...(name.trim() && { name: name.trim() }),
+          ...(phone.trim() && { phone: phone.trim() }),
+          ...(email.trim() && { email: email.trim() }),
+          ...(trimmedOrderNumber && { order_number: trimmedOrderNumber }),
+          ...(!trimmedOrderNumber &&
+            startDate.trim() && { startDate: startDate.trim() }),
+          ...(!trimmedOrderNumber &&
+            endDate.trim() && { endDate: endDate.trim() }),
         };
 
         const res = await ordersService.searchByDateRange(params);
@@ -188,12 +224,13 @@ export default function OrdersTable() {
               Start date
             </label>
 
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            />
+            <div className="relative w-32">
+              <input
+                ref={startDateInputRef}
+                className="h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 pr-9 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+              <CalendarAltIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
+            </div>
           </div>
 
           <div className="flex flex-col gap-1">
@@ -201,12 +238,13 @@ export default function OrdersTable() {
               End date
             </label>
 
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
-            />
+            <div className="relative w-32">
+              <input
+                ref={endDateInputRef}
+                className="h-9 w-full rounded-lg border border-gray-300 bg-transparent px-3 pr-9 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+              />
+              <CalendarAltIcon className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-500 dark:text-gray-400" />
+            </div>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import apiClient, { idealApiClient } from "../apiClient";
+import apiClient from "../apiClient";
 import type {
   PartDetailBcParams,
   PartDetailBcResponse,
@@ -12,18 +12,6 @@ import type {
   SupplierStockResponse,
 } from "./types";
 
-function assertIdealConfiguration() {
-  const apiUrl = import.meta.env.VITE_IDEAL_API_URL as string | undefined;
-  const apiKey = import.meta.env.VITE_IDEAL_API_KEY as string | undefined;
-
-  if (!apiUrl?.trim()) {
-    throw new Error("VITE_IDEAL_API_URL is not configured.");
-  }
-
-  if (!apiKey?.trim()) {
-    throw new Error("VITE_IDEAL_API_KEY is not configured.");
-  }
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -75,10 +63,9 @@ function normalizeLookupResponse(response: PartLookupApiResponse): PartLookupRes
 
 const partsService = {
   async searchBySku(params: PartLookupParams): Promise<PartLookupResponse> {
-    assertIdealConfiguration();
 
-    const response = await idealApiClient.get<PartLookupApiResponse>(
-      "/api/parts/lookup",
+    const response = await apiClient.get<PartLookupApiResponse>(
+      "/supplier-stock/v0/ideal/lookup",
       {
         params: {
           partNumber: params.partNumber.trim(),
@@ -90,16 +77,14 @@ const partsService = {
   },
 
   async getDetail(params: PartDetailParams): Promise<PartDetailResponse> {
-    assertIdealConfiguration();
 
-    const response = await idealApiClient.get<PartDetailResponse>(
-      "/api/parts/detail",
+    const response = await apiClient.get<PartDetailResponse>(
+      "/supplier-stock/v0/ideal/detail",
       {
         params: {
           mfr: params.mfr.trim(),
           partnumber: params.partNumber.trim(),
           locationid: params.locationId,
-          ...(params.orderNumber?.trim() ? { order_number: params.orderNumber.trim() } : {}),
         },
       },
     );
@@ -121,7 +106,6 @@ const partsService = {
           mfr_id: params.mfrId.trim(),
           part_number: params.partNumber.trim(),
           locationid: params.locationId,
-          ...(params.orderNumber?.trim() ? { order_number: params.orderNumber.trim() } : {}),
           force: params.force ?? true,
         },
       },
@@ -131,10 +115,9 @@ const partsService = {
   },
 
   async getDetailBc(params: PartDetailBcParams): Promise<PartDetailBcResponse> {
-    assertIdealConfiguration();
 
-    const response = await idealApiClient.get<PartDetailBcResponse>(
-      "/api/parts/detail-bc",
+    const response = await apiClient.get<PartDetailBcResponse>(
+      "/supplier-stock/v0/ideal/detail-bc",
       {
         params: {
           storeid: params.storeId,
