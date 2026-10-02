@@ -37,6 +37,8 @@ export interface OrdersResponse {
 export interface OrderDetailItem {
   // Current order API / IDEAL fields.
   item_id_internal?: number | string | null;
+  /** BigCommerce order-product line ID, required for precise partial refunds. */
+  bigcommerce_order_product_id?: number | string | null;
   mfr?: string | null;
   partnumber?: string | null;
   description?: string | null;
@@ -282,6 +284,7 @@ export interface OrderDetail {
   storeid?: number | string | null;
   store?: OrderStore | null;
   source: string;
+  cancellation_source?: "ideal" | "bigcommerce";
 
   // Statuses returned by the different order systems.
   status_ideal?: string | null;

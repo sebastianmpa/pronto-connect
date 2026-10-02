@@ -12,6 +12,7 @@ import type {
   Fac005ClaimDetails,
   Fac005ImageSyncSummary,
 } from "../../lib/atc-forms/types";
+import type { CreateCancellationResult } from "../../lib/cancellations/types";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import { formatDateTime } from "../../utils/date";
 
@@ -118,7 +119,11 @@ interface AtcFormDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   request: AtcFormItem | null;
-  onStatusChanged: (id: number, status: string) => void;
+  onStatusChanged: (
+    id: number,
+    status: string,
+    cancellationProcessedSource?: "ideal" | "bigcommerce",
+  ) => void;
   onFac005Updated?: () => void;
 }
 
@@ -224,6 +229,17 @@ export default function AtcFormDetailModal({
 
   const isCancellationRequest =
     normalizeFormType(request.form_type) === "cancellation";
+  const cancellationIsProcessed = normalizeFormType(request.status) === "processed";
+  const cancellationProcessedSource = normalizeFormType(
+    request.cancellation_processed_source,
+  );
+  const cancellationAlreadySubmitted =
+    cancellationProcessedSource === "ideal" ||
+    cancellationProcessedSource === "bigcommerce";
+
+  const availableStatuses = isCancellationRequest && !cancellationIsProcessed
+    ? ATC_FORM_STATUSES.filter((value) => value !== "processed")
+    : ATC_FORM_STATUSES;
 
   const updateStatusDirectly = async () => {
     const updated = await atcFormsService.updateStatus(request.id, status);
@@ -251,16 +267,6 @@ export default function AtcFormDetailModal({
   const handleSaveStatus = async () => {
     setError(null);
 
-    /*
-     * A Cancellation Client Request is considered processed only after the
-     * corresponding cancellation has been created. Therefore, changing it to
-     * processed opens the normal order-cancellation modal first.
-     */
-    if (isCancellationRequest && status === "processed") {
-      await openCancellationFlow();
-      return;
-    }
-
     setSaving(true);
 
     try {
@@ -272,18 +278,15 @@ export default function AtcFormDetailModal({
     }
   };
 
-  const handleCancellationSubmitted = async () => {
+  const handleCancellationSubmitted = async (result: CreateCancellationResult) => {
     setCancellationWasSubmitted(true);
-
-    try {
-      const updated = await atcFormsService.updateStatus(request.id, "processed");
-      const updatedStatus = normalizeValue(updated?.status) || "processed";
-      onStatusChanged(request.id, updatedStatus);
-    } catch {
-      throw new Error(
-        "The cancellation was created, but the Client Request could not be marked as processed. Please refresh and verify its status.",
-      );
-    }
+    // The cancellation API marks the matching cancellation form as processed
+    // after its IDEAL or BigCommerce work has completed successfully.
+    onStatusChanged(
+      request.id,
+      normalizeValue(result.atc_form?.status) || "processed",
+      result.source,
+    );
   };
 
   const handleCancellationClose = () => {
@@ -369,6 +372,17 @@ export default function AtcFormDetailModal({
                   <dd className="mt-0.5 text-sm text-gray-800 dark:text-white/90">
                     {formatDateTime(request.updated_at)}
                     {request.updated_by && ` · ${request.updated_by}`}
+                  </dd>
+                </div>
+              )}
+
+              {isCancellationRequest && cancellationAlreadySubmitted && (
+                <div>
+                  <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                    Cancellation processed in
+                  </dt>
+                  <dd className="mt-0.5 text-sm capitalize text-gray-800 dark:text-white/90">
+                    {cancellationProcessedSource}
                   </dd>
                 </div>
               )}
@@ -570,7 +584,7 @@ export default function AtcFormDetailModal({
                   disabled={saving || loadingOrder}
                   className="h-11 flex-1 appearance-none rounded-lg border border-gray-300 bg-transparent px-4 text-sm capitalize text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
-                  {ATC_FORM_STATUSES.map((value) => (
+                  {availableStatuses.map((value) => (
                     <option
                       key={value}
                       value={value}
@@ -599,10 +613,17 @@ export default function AtcFormDetailModal({
                 </button>
               </div>
 
-              {isCancellationRequest && status === "processed" && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Updating this Cancellation request to Processed will first open the cancellation form for order #{request.order_number}.
-                </p>
+              {isCancellationRequest &&
+                !cancellationIsProcessed &&
+                !cancellationAlreadySubmitted && (
+                <button
+                  type="button"
+                  onClick={() => void openCancellationFlow()}
+                  disabled={saving || loadingOrder}
+                  className="mt-3 h-11 w-full rounded-lg border border-error-300 bg-white px-4 text-sm font-semibold text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-error-500/40 dark:bg-gray-900 dark:text-error-400 dark:hover:bg-error-500/10"
+                >
+                  {loadingOrder ? "Loading order…" : "Cancel Order"}
+                </button>
               )}
             </div>
 

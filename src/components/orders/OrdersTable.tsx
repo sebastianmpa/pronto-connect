@@ -123,7 +123,7 @@ export default function OrdersTable() {
     setError(null);
 
     try {
-      const detail = await ordersService.getOrderDetail(rawNum);
+      const detail = await ordersService.getInvoiceDetail(rawNum);
       await downloadOrderInvoicePdf(detail);
     } catch {
       setError(

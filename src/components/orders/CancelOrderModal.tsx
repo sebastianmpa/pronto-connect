@@ -23,7 +23,7 @@ interface CancelOrderModalProps {
 
   /**
    * Called after the cancellation itself was created successfully. It is used
-   * by the Client Requests flow to mark the originating ATC form as processed.
+   * by Client Requests to reflect the status already persisted by the API.
    */
   onSubmitted?: (result: CreateCancellationResult) => void | Promise<void>;
 }
@@ -40,6 +40,13 @@ function itemKey(item: OrderDetailType["items"][number]): string {
 function orderedQty(item: OrderDetailType["items"][number]): number {
   const qty = Number(item.quantity_ordered);
   return Number.isFinite(qty) && qty > 0 ? qty : 1;
+}
+
+function bigCommerceOrderProductId(
+  item: OrderDetailType["items"][number],
+): number | undefined {
+  const value = Number(item.bigcommerce_order_product_id ?? item.id);
+  return Number.isInteger(value) && value > 0 ? value : undefined;
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -81,6 +88,7 @@ export default function CancelOrderModal({
   initialNote = "",
   onSubmitted,
 }: CancelOrderModalProps) {
+  const isBigCommerceCancellation = order.cancellation_source === "bigcommerce";
   const [type, setType] = useState<"Total" | "Partial">("Total");
   const [reason, setReason] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
@@ -98,13 +106,15 @@ export default function CancelOrderModal({
 
     let active = true;
     const requestedInitialReason = initialReason.trim();
+    const fallbackBigCommerceReason =
+      requestedInitialReason || "Customer requested cancellation";
 
     setType("Total");
-    setReason(requestedInitialReason);
+    setReason(isBigCommerceCancellation ? fallbackBigCommerceReason : requestedInitialReason);
     setReasons([]);
     setReasonsLoading(true);
     setReasonsError(null);
-    setNote(initialNote.trim());
+    setNote(isBigCommerceCancellation ? "" : initialNote.trim());
     setError(null);
     setWorkflowWarning(null);
     setResult(null);
@@ -114,6 +124,11 @@ export default function CancelOrderModal({
       initial[itemKey(item)] = { checked: true, qty: orderedQty(item) };
     });
     setSelected(initial);
+
+    if (isBigCommerceCancellation) {
+      setReasonsLoading(false);
+      return;
+    }
 
     void cancellationsService
       .getReasons()
@@ -144,7 +159,7 @@ export default function CancelOrderModal({
     return () => {
       active = false;
     };
-  }, [isOpen, order, initialReason, initialNote]);
+  }, [isOpen, order, initialReason, initialNote, isBigCommerceCancellation]);
 
   const toggleItem = (id: string) => {
     setSelected((previous) => ({
@@ -171,7 +186,7 @@ export default function CancelOrderModal({
     const cleanReason = reason.trim();
     const cleanNote = note.trim();
 
-    if (!cleanReason) {
+    if (!cleanReason && !isBigCommerceCancellation) {
       setError("Please provide a reason for the cancellation.");
       return;
     }
@@ -182,9 +197,12 @@ export default function CancelOrderModal({
       details = (order.items ?? [])
         .filter((item) => selected[itemKey(item)]?.checked)
         .map((item) => ({
-          mfr: String(item.mfr ?? "").trim(),
-          partnumber: String(item.partnumber ?? "").trim(),
+          mfr: String(item.mfr ?? item.brand ?? "").trim(),
+          partnumber: String(item.partnumber ?? item.mpn ?? item.sku ?? "").trim(),
           UnitsToRefund: selected[itemKey(item)]?.qty ?? orderedQty(item),
+          ...(bigCommerceOrderProductId(item)
+            ? { bigcommerce_order_product_id: bigCommerceOrderProductId(item) }
+            : {}),
         }));
 
       if (details.length === 0) {
@@ -192,8 +210,14 @@ export default function CancelOrderModal({
         return;
       }
 
-      if (details.some((detail) => !detail.mfr || !detail.partnumber)) {
-        setError("MFR and Part Number are required for each selected item.");
+      if (
+        details.some(
+          (detail) =>
+            !detail.bigcommerce_order_product_id &&
+            (!detail.mfr || !detail.partnumber),
+        )
+      ) {
+        setError("Each selected item requires a BigCommerce line ID or both MFR and Part Number.");
         return;
       }
     }
@@ -205,8 +229,8 @@ export default function CancelOrderModal({
     try {
       const basePayload = {
         OrderID: order.order_number,
-        reason: cleanReason,
-        ...(cleanNote ? { note: cleanNote } : {}),
+        reason: cleanReason || "Customer requested cancellation",
+        ...(!isBigCommerceCancellation && cleanNote ? { note: cleanNote } : {}),
       };
 
       const payload: CreateCancellationPayload =
@@ -270,7 +294,9 @@ export default function CancelOrderModal({
           </h4>
 
           <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-            Order {result.OrderID} was submitted for cancellation. Reference ID: {result.id}.
+            Order {result.OrderID} was submitted for cancellation.
+            {result.id ? ` Reference ID: ${result.id}.` : ""}
+            {result.source === "bigcommerce" && " BigCommerce refund created."}
             {result.shipworks && ` ShipWorks status: ${result.shipworks.localStatus}.`}
           </p>
 
@@ -361,6 +387,12 @@ export default function CancelOrderModal({
               </div>
             </div>
 
+            {isBigCommerceCancellation ? (
+              <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:bg-white/[0.03] dark:text-gray-300">
+                This order is refunded directly in BigCommerce.
+              </p>
+            ) : (
+              <>
             <div>
               <Label>Reason</Label>
               <div className="relative">
@@ -430,6 +462,8 @@ export default function CancelOrderModal({
                 </p>
               )}
             </div>
+              </>
+            )}
 
             {error && (
               <div className="rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">

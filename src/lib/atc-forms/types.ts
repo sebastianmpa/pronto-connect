@@ -114,6 +114,8 @@ export interface AtcFormItem {
   form_type: string;
   form_sub_type: string | null;
   status: string | null;
+  /** Set once a cancellation is successfully executed; it is not a workflow status. */
+  cancellation_processed_source: "ideal" | "bigcommerce" | null;
   updated_at: string | null;
   updated_by: string | null;
   detail?: Record<string, unknown> | null;

@@ -73,6 +73,8 @@ export interface CancellationRequestItem {
   mfr: string;
   partnumber: string;
   UnitsToRefund: number;
+  /** Identifies the exact BigCommerce order line for a partial refund. */
+  bigcommerce_order_product_id?: number;
 }
 
 interface CreateCancellationPayloadBase {
@@ -95,11 +97,25 @@ export type CreateCancellationPayload =
 
 export interface CreateCancellationResult {
   success: boolean;
-  id: number;
-  soid: number;
+  id?: number | null;
+  soid?: number | null;
   OrderID: string;
   user: string;
   correlationId: string;
+  source?: "ideal" | "bigcommerce";
+  atc_form?: {
+    status: string;
+    updated?: boolean;
+    source?: "ideal" | "bigcommerce";
+  };
+  refund?: {
+    id: string | number | null;
+    status: string | null;
+  };
+  bigcommerce?: {
+    status: string | null;
+    cancelled: "Y" | "N";
+  };
   shipworks?: {
     orderId: string;
     localStatus: string;

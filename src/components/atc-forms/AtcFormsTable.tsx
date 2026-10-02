@@ -306,6 +306,7 @@ export default function AtcFormsTable() {
           { header: "Form Type", value: (row) => row.form_type },
           { header: "Form Sub Type", value: (row) => row.form_sub_type },
           { header: "Status", value: (row) => row.status },
+          { header: "Cancellation Processed In", value: (row) => row.cancellation_processed_source },
           { header: "Created", value: (row) => formatDate(row.created_at) },
           { header: "Updated", value: (row) => row.updated_at ? formatDate(row.updated_at) : "" },
           { header: "Updated By", value: (row) => row.updated_by },
@@ -569,7 +570,7 @@ export default function AtcFormsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order #", "Customer", "Type", "Created", "Status", "FAC005", "Actions"].map((label) => (
+                {["Order #", "Customer", "Type", "Created", "Status", "Cancellation", "FAC005", "Actions"].map((label) => (
                   <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                     <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
                   </TableCell>
@@ -579,7 +580,7 @@ export default function AtcFormsTable() {
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                     No client requests found for the selected filters.
                   </td>
                 </TableRow>
@@ -612,6 +613,15 @@ export default function AtcFormsTable() {
                           </option>
                         ))}
                       </select>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
+                      {item.cancellation_processed_source ? (
+                        <span className="inline-flex rounded-full bg-success-50 px-2.5 py-1 text-xs font-semibold capitalize text-success-700 dark:bg-success-500/10 dark:text-success-400">
+                          {item.cancellation_processed_source}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400 dark:text-gray-500">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 dark:border-white/[0.05]">
                       {item.fac005?.converted ? (
@@ -698,12 +708,30 @@ export default function AtcFormsTable() {
         isOpen={!!selectedRequest}
         onClose={closeSelectedRequest}
         request={selectedRequest}
-        onStatusChanged={(id, newStatus) => {
+        onStatusChanged={(id, newStatus, cancellationProcessedSource) => {
           setItems((current) =>
-            current.map((row) => (row.id === id ? { ...row, status: newStatus } : row)),
+            current.map((row) =>
+              row.id === id
+                ? {
+                    ...row,
+                    status: newStatus,
+                    ...(cancellationProcessedSource
+                      ? { cancellation_processed_source: cancellationProcessedSource }
+                      : {}),
+                  }
+                : row,
+            ),
           );
           setSelectedRequest((current) =>
-            current && current.id === id ? { ...current, status: newStatus } : current,
+            current && current.id === id
+              ? {
+                  ...current,
+                  status: newStatus,
+                  ...(cancellationProcessedSource
+                    ? { cancellation_processed_source: cancellationProcessedSource }
+                    : {}),
+                }
+              : current,
           );
         }}
         onFac005Updated={() => {
