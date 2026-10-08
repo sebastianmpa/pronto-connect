@@ -20,6 +20,9 @@ interface CancelOrderModalProps {
   /** Optional values used when the modal is opened from a Client Request. */
   initialReason?: string;
   initialNote?: string;
+  /** Preserves the comment from a newly created Client Request. */
+  isNewClientRequestFlow?: boolean;
+  clientRequestId?: number;
 
   /**
    * Called after the cancellation itself was created successfully. It is used
@@ -86,9 +89,13 @@ export default function CancelOrderModal({
   onCancelled,
   initialReason = "",
   initialNote = "",
+  isNewClientRequestFlow = false,
+  clientRequestId,
   onSubmitted,
 }: CancelOrderModalProps) {
   const isBigCommerceCancellation = order.cancellation_source === "bigcommerce";
+  const totalOnly = isBigCommerceCancellation;
+  const hideReasonAndNote = isBigCommerceCancellation;
   const [type, setType] = useState<"Total" | "Partial">("Total");
   const [reason, setReason] = useState("");
   const [reasons, setReasons] = useState<string[]>([]);
@@ -114,7 +121,7 @@ export default function CancelOrderModal({
     setReasons([]);
     setReasonsLoading(true);
     setReasonsError(null);
-    setNote(isBigCommerceCancellation ? "" : initialNote.trim());
+    setNote(isBigCommerceCancellation && !isNewClientRequestFlow ? "" : initialNote.trim());
     setError(null);
     setWorkflowWarning(null);
     setResult(null);
@@ -159,7 +166,7 @@ export default function CancelOrderModal({
     return () => {
       active = false;
     };
-  }, [isOpen, order, initialReason, initialNote, isBigCommerceCancellation]);
+  }, [isOpen, order, initialReason, initialNote, isBigCommerceCancellation, isNewClientRequestFlow]);
 
   const toggleItem = (id: string) => {
     setSelected((previous) => ({
@@ -230,11 +237,11 @@ export default function CancelOrderModal({
       const basePayload = {
         OrderID: order.order_number,
         reason: cleanReason || "Customer requested cancellation",
-        ...(!isBigCommerceCancellation && cleanNote ? { note: cleanNote } : {}),
+        ...((!isBigCommerceCancellation || isNewClientRequestFlow) && cleanNote ? { note: cleanNote } : {}),
       };
 
       const payload: CreateCancellationPayload =
-        type === "Total"
+        type === "Total" || totalOnly
           ? {
               ...basePayload,
               type: "Total",
@@ -245,7 +252,10 @@ export default function CancelOrderModal({
               details,
             };
 
-      const response = await cancellationsService.submit(payload);
+      const response = await cancellationsService.submit({
+        ...payload,
+        ...(clientRequestId ? { atcFormId: clientRequestId } : {}),
+      });
 
       setResult(response);
       onCancelled?.();
@@ -334,14 +344,14 @@ export default function CancelOrderModal({
                 onChange={() => setType("Total")}
                 label="Cancel entire order"
               />
-              <Radio
+              {!totalOnly && <Radio
                 id="cancel-partial"
                 name="cancel-type"
                 value="Partial"
                 checked={type === "Partial"}
                 onChange={() => setType("Partial")}
                 label="Cancel specific items"
-              />
+              />}
             </div>
 
             <div>
@@ -387,12 +397,18 @@ export default function CancelOrderModal({
               </div>
             </div>
 
-            {isBigCommerceCancellation ? (
+            {hideReasonAndNote ? (
               <p className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:bg-white/[0.03] dark:text-gray-300">
                 This order is refunded directly in BigCommerce.
               </p>
             ) : (
               <>
+            {isBigCommerceCancellation ? (
+              <div>
+                <Label>Reason</Label>
+                <input value={reason} onChange={(event) => setReason(event.target.value)} className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 text-sm dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" />
+              </div>
+            ) : (
             <div>
               <Label>Reason</Label>
               <div className="relative">
@@ -447,6 +463,7 @@ export default function CancelOrderModal({
                 </p>
               )}
             </div>
+            )}
 
             <div>
               <Label>Note (optional)</Label>

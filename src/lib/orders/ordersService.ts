@@ -6,12 +6,36 @@ import type {
   RevertCancellationPayload,
   RevertCancellationResponse,
   AddOrderNoteResponse,
+  OrderSearchStore,
+  BigCommerceOrderSearchResponse,
 } from "./types";
 
 /**
  * Orders module — ATC customer orders service.
  */
 const ordersService = {
+  getOrderSearchStores: async (): Promise<OrderSearchStore[]> => {
+    const { data } = await apiClient.get<{ items: OrderSearchStore[] }>(
+      "/customer-orders/atc/v0/order-search/stores",
+    );
+    return data.items ?? [];
+  },
+
+  searchBigCommerceOrders: async (params: {
+    store_url: string;
+    email?: string;
+    name?: string;
+    start_date: string;
+    end_date: string;
+    cursor?: number;
+  }): Promise<BigCommerceOrderSearchResponse> => {
+    const { data } = await apiClient.get<BigCommerceOrderSearchResponse>(
+      "/customer-orders/atc/v0/order-search/orders",
+      { params },
+    );
+    return data;
+  },
+
   /**
    * GET /customer-orders/atc/v0/orders/search-by-date-range
    */

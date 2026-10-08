@@ -15,7 +15,9 @@ import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
 import AtcFormDetailModal from "./AtcFormDetailModal";
 import CreateAtcFormModal from "./CreateAtcFormModal";
 import ConvertClaimToFac005Modal from "./ConvertClaimToFac005Modal";
+import CancelOrderModal from "../orders/CancelOrderModal";
 import type { AtcFormItem, AtcFormsParams } from "../../lib/atc-forms/types";
+import type { OrderDetail } from "../../lib/orders/types";
 import { formatDate } from "../../utils/date";
 import { fetchAllPages } from "../../utils/paginatedData";
 import { downloadRowsAsXlsx } from "../../utils/xlsxExport";
@@ -103,6 +105,12 @@ export default function AtcFormsTable() {
   const [claimPendingConversion, setClaimPendingConversion] = useState<AtcFormItem | null>(null);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const [conversionNotice, setConversionNotice] = useState<string | null>(null);
+  const [newCancellation, setNewCancellation] = useState<{
+    order: OrderDetail;
+    requestId: number;
+    reason: string;
+    note: string;
+  } | null>(null);
 
   useEffect(() => {
     setOrderNumber(sourceOrderId);
@@ -744,7 +752,23 @@ export default function AtcFormsTable() {
         formTypes={formTypes}
         initialOrderNumber={sourceOrderId || orderNumber}
         onCreated={() => fetchRequests(1)}
+        onCancellationCreated={(cancellation) => {
+          setCreateModalOpen(false);
+          setNewCancellation(cancellation);
+        }}
       />
+      {newCancellation && (
+        <CancelOrderModal
+          isOpen
+          onClose={() => setNewCancellation(null)}
+          order={newCancellation.order}
+          initialReason={newCancellation.reason}
+          initialNote={newCancellation.note}
+          isNewClientRequestFlow
+          clientRequestId={newCancellation.requestId}
+          onSubmitted={() => fetchRequests(1)}
+        />
+      )}
       <ConvertClaimToFac005Modal
         claim={claimPendingConversion}
         isConverting={convertingClaimId === claimPendingConversion?.id}

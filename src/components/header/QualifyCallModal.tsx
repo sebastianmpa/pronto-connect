@@ -74,7 +74,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
         customerPhoneNumber,
         contactReason,
         closureMethod,
-        origin: "zoho",
+        origin: "goto",
       });
       setSuccess(true);
     } catch {

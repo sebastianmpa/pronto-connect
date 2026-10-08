@@ -58,6 +58,8 @@ import { ReactComponent as BoxMoving } from "./box-moving.svg?react";
 import { ReactComponent as AiIcon } from "./ai-icon.svg?react";
 import { ReactComponent as CartIcon } from "./cart-icon.svg?react";
 import { ReactComponent as CallIcon } from "./call-icon.svg?react";
+import { ReactComponent as ZohoIcon } from "./zoho.svg?react";
+import { ReactComponent as GoToIcon } from "./goto.svg?react";
 import { ReactComponent as DashboardAltIcon } from "./dashboard-alt.svg?react";
 import { ReactComponent as CalendarAltIcon } from "./calendar-alt.svg?react";
 import { ReactComponent as ProfileAltIcon } from "./profile-alt.svg?react";
@@ -155,6 +157,8 @@ export {
   FilesIcon,
   MultiUserIcon,
   CallIcon,
+  ZohoIcon,
+  GoToIcon,
   CartIcon,
   AiIcon,
   BoxMoving,

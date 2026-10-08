@@ -5,6 +5,11 @@ import Input from "../form/input/InputField";
 import TextArea from "../form/input/TextArea";
 import atcFormsService from "../../lib/atc-forms/atcFormsService";
 import ordersService from "../../lib/orders/ordersService";
+import type {
+  BigCommerceOrderSearchItem,
+  OrderDetail,
+  OrderSearchStore,
+} from "../../lib/orders/types";
 import type { AtcFormSubmissionType } from "../../lib/atc-forms/types";
 
 const SUPPORTED_TYPES: AtcFormSubmissionType[] = [
@@ -48,11 +53,30 @@ interface CreateAtcFormModalProps {
   formTypes: string[];
   initialOrderNumber?: string;
   onCreated: () => void | Promise<void>;
+  onCancellationCreated?: (data: {
+    order: OrderDetail;
+    requestId: number;
+    reason: string;
+    note: string;
+  }) => void | Promise<void>;
 }
 
 type FormValues = Record<string, string>;
 
 const fieldClassName = "space-y-1.5";
+
+function defaultSearchStartDate(): string {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() - 1);
+  return toLocalDateInput(date);
+}
+
+function toLocalDateInput(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function normalizedSupportedTypes(
   formTypes: string[],
@@ -69,6 +93,7 @@ export default function CreateAtcFormModal({
   formTypes,
   initialOrderNumber = "",
   onCreated,
+  onCancellationCreated,
 }: CreateAtcFormModalProps) {
   const availableTypes = useMemo(
     () => normalizedSupportedTypes(formTypes),
@@ -84,6 +109,17 @@ export default function CreateAtcFormModal({
   const [success, setSuccess] = useState<string | null>(null);
   const [lookingUpOrder, setLookingUpOrder] = useState(false);
   const [orderLookupMessage, setOrderLookupMessage] = useState<string | null>(null);
+  const [stores, setStores] = useState<OrderSearchStore[]>([]);
+  const [searchStore, setSearchStore] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const [searchEmail, setSearchEmail] = useState("");
+  const [searchStartDate, setSearchStartDate] = useState(() => defaultSearchStartDate());
+  const [searchEndDate, setSearchEndDate] = useState(() => toLocalDateInput(new Date()));
+  const [searchResults, setSearchResults] = useState<BigCommerceOrderSearchItem[]>([]);
+  const [hasSearchedOrders, setHasSearchedOrders] = useState(false);
+  const [searchCursor, setSearchCursor] = useState<number | null>(null);
+  const [searchingOrders, setSearchingOrders] = useState(false);
+  const [orderSearchError, setOrderSearchError] = useState<string | null>(null);
   const orderLookupRequestRef = useRef(0);
 
   useEffect(() => {
@@ -96,7 +132,65 @@ export default function CreateAtcFormModal({
     setSuccess(null);
     setLookingUpOrder(false);
     setOrderLookupMessage(null);
+    setSearchResults([]);
+    setHasSearchedOrders(false);
+    setSearchCursor(null);
+    setOrderSearchError(null);
+    setSearchStartDate(defaultSearchStartDate());
+    setSearchEndDate(toLocalDateInput(new Date()));
   }, [isOpen, initialOrderNumber, availableTypes]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    void ordersService.getOrderSearchStores().then((availableStores) => {
+      if (!active) return;
+      setStores(availableStores);
+      setSearchStore((current) => current || String(availableStores[0]?.urlStore ?? ""));
+    }).catch(() => {
+      if (active) setOrderSearchError("Order search stores could not be loaded.");
+    });
+    return () => { active = false; };
+  }, [isOpen]);
+
+  const searchOrders = async (cursor?: number) => {
+    if (!searchStore || (!searchName.trim() && !searchEmail.trim())) {
+      setOrderSearchError("Select a store and enter a customer name or email.");
+      return;
+    }
+    if (searchStartDate > searchEndDate) {
+      setOrderSearchError("The start date cannot be after the end date.");
+      return;
+    }
+    setSearchingOrders(true);
+    setOrderSearchError(null);
+    if (!cursor) {
+      setSearchResults([]);
+      setHasSearchedOrders(true);
+    }
+    try {
+      const response = await ordersService.searchBigCommerceOrders({
+        store_url: searchStore,
+        ...(searchName.trim() ? { name: searchName.trim() } : {}),
+        ...(searchEmail.trim() ? { email: searchEmail.trim() } : {}),
+        start_date: searchStartDate,
+        end_date: searchEndDate,
+        ...(cursor ? { cursor } : {}),
+      });
+      setSearchResults((current) => cursor ? [...current, ...response.items] : response.items);
+      setSearchCursor(response.nextCursor);
+    } catch {
+      setOrderSearchError("BigCommerce orders could not be searched. Please try again.");
+    } finally {
+      setSearchingOrders(false);
+    }
+  };
+
+  const selectSearchOrder = (order: BigCommerceOrderSearchItem) => {
+    setValues((current) => ({ ...current, order_number: order.order_number, customer_name: order.customer_name, customer_email: order.customer_email }));
+    setSearchResults([]);
+    setSearchCursor(null);
+  };
 
   useEffect(() => {
     const orderNumber = (values.order_number ?? "").trim();
@@ -316,8 +410,20 @@ export default function CreateAtcFormModal({
     setSaving(true);
     setError(null);
     try {
+      const cancellationOrder = selectedType === "cancellation"
+        ? await ordersService.getOrderDetail(values.order_number.trim())
+        : null;
       const result = await atcFormsService.submit(selectedType, payload);
       await onCreated();
+      if (selectedType === "cancellation" && cancellationOrder) {
+        await onCancellationCreated?.({
+          order: cancellationOrder,
+          requestId: result.id,
+          reason: values.cancellation_reason?.trim() ?? "",
+          note: values.ticket_text?.trim() ?? "",
+        });
+        return;
+      }
       setSuccess(
         result.zohoTicket
           ? `${TYPE_LABELS[selectedType]} #${result.id} created. Zoho ticket: ${result.zohoTicket}.`
@@ -352,7 +458,7 @@ export default function CreateAtcFormModal({
             Create client request
           </h4>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Select a request type, complete the customer information, and submit
+            Find the customer order first, then complete and submit the request
             without leaving this page.
           </p>
         </div>
@@ -364,6 +470,34 @@ export default function CreateAtcFormModal({
           </div>
         ) : (
           <>
+            <div className="mb-5 space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <p className="text-sm font-medium text-gray-800 dark:text-white/90">Find an order by customer</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <select value={searchStore} onChange={(event) => { setSearchStore(event.target.value); setSearchResults([]); setSearchCursor(null); setHasSearchedOrders(false); }} disabled={saving} className={selectClassName} aria-label="Store">
+                  <option value="">Select store</option>
+                  {stores.map((store) => <option key={store.id} value={store.urlStore}>{store.name}</option>)}
+                </select>
+                <Input type="text" value={searchName} onChange={(event) => setSearchName(event.target.value)} placeholder="Customer name" disabled={saving} />
+                <Input type="email" value={searchEmail} onChange={(event) => setSearchEmail(event.target.value)} placeholder="Customer email" disabled={saving} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input type="date" value={searchStartDate} onChange={(event) => setSearchStartDate(event.target.value)} aria-label="Start date" />
+                  <Input type="date" value={searchEndDate} onChange={(event) => setSearchEndDate(event.target.value)} aria-label="End date" />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button type="button" onClick={() => void searchOrders()} disabled={searchingOrders || saving} className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-gray-900 disabled:opacity-50">{searchingOrders ? "Searching…" : "Search orders"}</button>
+              </div>
+              {orderSearchError && <p role="alert" className="text-sm text-error-600">{orderSearchError}</p>}
+              {(searchResults.length > 0 || searchCursor !== null) && <div className="max-h-40 space-y-2 overflow-y-auto">
+                {searchResults.map((order) => <button key={`${order.store_url}-${order.order_id}`} type="button" onClick={() => selectSearchOrder(order)} className="flex w-full justify-between gap-3 rounded-md border border-gray-100 p-2 text-left text-sm hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03]">
+                  <span><strong>#{order.order_number}</strong> · {order.customer_name || "Guest"}<span className="block text-xs text-gray-500">{order.customer_email} · {order.date_created}</span></span><span className="shrink-0">{order.status}</span>
+                </button>)}
+                {searchResults.length === 0 && searchCursor !== null && <p className="text-xs text-gray-500">No matches on this page. Continue searching older orders.</p>}
+                {searchCursor && <button type="button" onClick={() => void searchOrders(searchCursor)} disabled={searchingOrders} className="w-full py-2 text-sm text-brand-600">{searchingOrders ? "Loading…" : "Load more orders"}</button>}
+              </div>}
+              {searchResults.length === 0 && searchCursor === null && !searchingOrders && !orderSearchError && <p className="text-xs text-gray-500">{hasSearchedOrders ? "No matching orders were found." : "Search uses the last 12 months by default; dates can be expanded."}</p>}
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className={fieldClassName}>
                 <Label>Request type</Label>
@@ -430,6 +564,8 @@ export default function CreateAtcFormModal({
                 />
               </div>
             </div>
+
+
 
             <div className="mt-5 border-t border-gray-100 pt-5 dark:border-white/[0.06]">
               {selectedType === "claim" && (

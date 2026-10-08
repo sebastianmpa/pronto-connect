@@ -8,6 +8,8 @@ import {
   BoxCubeIcon,
   // CalenderIcon,
   CallIcon,
+  ZohoIcon,
+  GoToIcon,
   // CartIcon,
   // ChatIcon,
   ChevronDownIcon,
@@ -89,9 +91,14 @@ const navItems: NavItem[] = [
     path: "/client-requests",
   },
   {
-    icon: <CallIcon />,
+    icon: <ZohoIcon />,
     name: "Zoho Tickets",
     path: "/tickets",
+  },
+  {
+    icon: <GoToIcon />,
+    name: "Answered Calls",
+    path: "/answered-calls",
   },
 ];
 

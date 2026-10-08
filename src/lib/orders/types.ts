@@ -32,6 +32,30 @@ export interface OrdersResponse {
   items: OrderItem[];
 }
 
+export interface OrderSearchStore {
+  id: number;
+  name: string;
+  urlStore: string;
+  prefijo: string;
+}
+
+export interface BigCommerceOrderSearchItem {
+  order_number: string;
+  order_id: number;
+  store_url: string;
+  store_name: string;
+  customer_name: string;
+  customer_email: string;
+  date_created: string;
+  status: string;
+  total_inc_tax: string;
+}
+
+export interface BigCommerceOrderSearchResponse {
+  items: BigCommerceOrderSearchItem[];
+  nextCursor: number | null;
+}
+
 // ─── Order detail ─────────────────────────────────────────────────────────────
 
 export interface OrderDetailItem {

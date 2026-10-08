@@ -17,6 +17,7 @@ import CancellationsList from "./pages/Cancellations/CancellationsList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
 import ClosureMethodsList from "./pages/ClosureMethods/ClosureMethodsList";
 import ContactReasonsList from "./pages/ContactReasons/ContactReasonsList";
+import AnsweredCallsList from "./pages/AnsweredCalls/AnsweredCallsList";
 import StatusDictionaryList from "./pages/StatusDictionary/StatusDictionaryList";
 import CustomerContactsList from "./pages/CustomerContacts/CustomerContactsList";
 import CustomerContactDetail from "./pages/CustomerContacts/CustomerContactDetail";
@@ -154,6 +155,7 @@ export default function App() {
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
             <Route path="/closure-methods" element={<ClosureMethodsList />} />
             <Route path="/contact-reasons" element={<ContactReasonsList />} />
+            <Route path="/answered-calls" element={<AnsweredCallsList />} />
             <Route path="/status-dictionary" element={<StatusDictionaryList />} />
             <Route path="/customer-contacts" element={<CustomerContactsList />} />
             <Route path="/customer-contacts/:orderId" element={<CustomerContactDetail />} />

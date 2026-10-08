@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g stroke-width="1.7">
+    <rect x="1.5" y="3" width="10" height="10" rx="2" stroke="#E42527" transform="rotate(-11 1.5 3)"/>
+    <rect x="8" y="2" width="10" height="10" rx="2" stroke="#00A651" transform="rotate(23 8 2)"/>
+    <rect x="12.5" y="3" width="10" height="10" rx="2" stroke="#1685C7" transform="rotate(-8 12.5 3)"/>
+    <rect x="16" y="4" width="7" height="10" rx="2" stroke="#F7A823"/>
+  </g>
+  <text x="12" y="21" text-anchor="middle" fill="currentColor" font-family="Arial, sans-serif" font-size="4.3" font-weight="700" letter-spacing="1.4">ZOHO</text>
+</svg>
