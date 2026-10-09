@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from "../ui/table";
+import FilteredResultsToolbar from "../common/FilteredResultsToolbar";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
 import answeredCallsService from "../../lib/answered-calls/answeredCallsService";
 import type {
@@ -13,6 +14,8 @@ import type {
   AnsweredCallsParams,
 } from "../../lib/answered-calls/types";
 import { formatDateTime } from "../../utils/date";
+import { fetchAllPages } from "../../utils/paginatedData";
+import { downloadRowsAsXlsx } from "../../utils/xlsxExport";
 
 interface CallFilters {
   agentName: string;
@@ -63,7 +66,10 @@ export default function AnsweredCallsTable() {
   const [items, setItems] = useState<AnsweredCallItem[]>([]);
   const [totalPages, setTotalPages] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
+  const [overallTotalItems, setOverallTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const requestId = useRef(0);
 
@@ -93,6 +99,19 @@ export default function AnsweredCallsTable() {
     return () => { requestId.current += 1; };
   }, [fetchCalls]);
 
+  useEffect(() => {
+    let active = true;
+    void answeredCallsService.getPaginated({ page: 1, limit: 1 })
+      .then((response) => {
+        if (active) setOverallTotalItems(response.totalItems);
+      })
+      .catch(() => {
+        if (active) setActionError("Could not load the total answered calls.");
+      });
+
+    return () => { active = false; };
+  }, []);
+
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
@@ -107,6 +126,41 @@ export default function AnsweredCallsTable() {
       agentEmail: filters.agentEmail.trim(),
       customerPhoneNumber: filters.customerPhoneNumber.trim(),
     });
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    setActionError(null);
+
+    try {
+      const rows = await fetchAllPages<AnsweredCallItem>((page, pageSize) =>
+        answeredCallsService.getPaginated(
+          buildParams(appliedFilters, page, pageSize),
+        ),
+      );
+
+      downloadRowsAsXlsx({
+        rows,
+        filename: `answered-calls-${new Date().toISOString().slice(0, 10)}.xlsx`,
+        sheetName: "Answered Calls",
+        columns: [
+          { header: "Call date", value: (call) => formatDateTime(call.callDateTime) },
+          { header: "Agent", value: (call) => call.agentName },
+          { header: "Agent email", value: (call) => call.agentEmail },
+          { header: "Extension", value: (call) => call.extension },
+          { header: "Customer phone", value: (call) => call.customerPhoneNumber },
+          { header: "Call ID", value: (call) => call.callId },
+          { header: "Order", value: (call) => call.orderNumber },
+          { header: "Contact reason", value: (call) => call.contactReason },
+          { header: "Closure method", value: (call) => call.closureMethod },
+          { header: "Origin", value: (call) => call.origin === "goto" ? "GoTo" : "Zoho" },
+        ],
+      });
+    } catch {
+      setActionError("Failed to export answered calls. Please try again.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleClear = () => {
@@ -153,6 +207,19 @@ export default function AnsweredCallsTable() {
           <button type="button" onClick={handleClear} className="h-10 rounded-lg border border-gray-300 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">Clear</button>
         </div>
       </form>
+
+      <FilteredResultsToolbar
+        filteredCount={totalItems}
+        totalCount={Math.max(overallTotalItems, totalItems)}
+        exporting={exporting}
+        onExport={() => void handleExport()}
+        disabled={loading}
+      />
+      {actionError && (
+        <p role="alert" className="border-x border-b border-gray-100 px-4 py-3 text-sm text-error-500 dark:border-white/[0.05]">
+          {actionError}
+        </p>
+      )}
 
       <div className="max-w-full overflow-x-auto custom-scrollbar">
         {loading ? (

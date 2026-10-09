@@ -49,6 +49,7 @@ export interface BigCommerceOrderSearchItem {
   date_created: string;
   status: string;
   total_inc_tax: string;
+  currency_code?: string;
 }
 
 export interface BigCommerceOrderSearchResponse {

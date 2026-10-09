@@ -78,6 +78,16 @@ function toLocalDateInput(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatOrderTotal(order: BigCommerceOrderSearchItem): string {
+  const currency = order.currency_code || "USD";
+  const amount = Number(order.total_inc_tax);
+  if (!Number.isFinite(amount)) return `${currency} ${order.total_inc_tax}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(amount);
+}
+
 function normalizedSupportedTypes(
   formTypes: string[],
 ): AtcFormSubmissionType[] {
@@ -125,7 +135,7 @@ export default function CreateAtcFormModal({
   useEffect(() => {
     if (!isOpen) return;
 
-    setSelectedType(availableTypes[0] ?? "");
+    setSelectedType("");
     setValues({ order_number: initialOrderNumber, origin: "Pronto Connect" });
     setImages([]);
     setError(null);
@@ -135,6 +145,7 @@ export default function CreateAtcFormModal({
     setSearchResults([]);
     setHasSearchedOrders(false);
     setSearchCursor(null);
+    setSearchStore("");
     setOrderSearchError(null);
     setSearchStartDate(defaultSearchStartDate());
     setSearchEndDate(toLocalDateInput(new Date()));
@@ -146,7 +157,6 @@ export default function CreateAtcFormModal({
     void ordersService.getOrderSearchStores().then((availableStores) => {
       if (!active) return;
       setStores(availableStores);
-      setSearchStore((current) => current || String(availableStores[0]?.urlStore ?? ""));
     }).catch(() => {
       if (active) setOrderSearchError("Order search stores could not be loaded.");
     });
@@ -490,7 +500,11 @@ export default function CreateAtcFormModal({
               {orderSearchError && <p role="alert" className="text-sm text-error-600">{orderSearchError}</p>}
               {(searchResults.length > 0 || searchCursor !== null) && <div className="max-h-40 space-y-2 overflow-y-auto">
                 {searchResults.map((order) => <button key={`${order.store_url}-${order.order_id}`} type="button" onClick={() => selectSearchOrder(order)} className="flex w-full justify-between gap-3 rounded-md border border-gray-100 p-2 text-left text-sm hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-white/[0.03]">
-                  <span><strong>#{order.order_number}</strong> · {order.customer_name || "Guest"}<span className="block text-xs text-gray-500">{order.customer_email} · {order.date_created}</span></span><span className="shrink-0">{order.status}</span>
+                  <span><strong>#{order.order_number}</strong> · {order.customer_name || "Guest"}<span className="block text-xs text-gray-500">{order.customer_email} · {order.date_created}</span></span>
+                  <span className="shrink-0 text-right">
+                    <span className="block">{order.status}</span>
+                    <span className="block font-medium text-gray-700 dark:text-gray-300">{formatOrderTotal(order)}</span>
+                  </span>
                 </button>)}
                 {searchResults.length === 0 && searchCursor !== null && <p className="text-xs text-gray-500">No matches on this page. Continue searching older orders.</p>}
                 {searchCursor && <button type="button" onClick={() => void searchOrders(searchCursor)} disabled={searchingOrders} className="w-full py-2 text-sm text-brand-600">{searchingOrders ? "Loading…" : "Load more orders"}</button>}
@@ -509,6 +523,7 @@ export default function CreateAtcFormModal({
                   disabled={saving || Boolean(success)}
                   className="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:ring-3 focus:ring-brand-500/20 focus:outline-hidden disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
                 >
+                  <option value="">Select request type</option>
                   {availableTypes.map((type) => (
                     <option key={type} value={type}>
                       {TYPE_LABELS[type]}
