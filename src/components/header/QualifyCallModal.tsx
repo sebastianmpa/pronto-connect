@@ -32,6 +32,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
   const [customerPhoneNumber, setCustomerPhoneNumber] = useState("");
   const [contactReason, setContactReason] = useState("");
   const [closureMethod, setClosureMethod] = useState("");
+  const [note, setNote] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
     setCustomerPhoneNumber(call ? getCallerInfo(call.event)?.number ?? "" : "");
     setContactReason("");
     setClosureMethod("");
+    setNote("");
     setError(null);
     setSuccess(false);
     Promise.all([contactReasonsService.getAll(), closureMethodsService.getAll()])
@@ -58,7 +60,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
 
   const handleSave = async () => {
     if (!call) return;
-    if (!callDateTime || !customerPhoneNumber.trim() || !contactReason || !closureMethod) {
+    if (!callDateTime || !customerPhoneNumber.trim() || !contactReason || !closureMethod || !note.trim()) {
       setError("Please fill in every field before saving.");
       return;
     }
@@ -74,6 +76,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
         customerPhoneNumber,
         contactReason,
         closureMethod,
+        note: note.trim(),
         origin: "goto",
       });
       setSuccess(true);
@@ -158,6 +161,18 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
                 options={methods.map((m) => ({ value: m.methodName, label: m.methodName }))}
                 onChange={setClosureMethod}
                 placeholder="Select a closure method"
+              />
+            </div>
+
+            <div>
+              <Label>Note <span className="text-error-500">*</span></Label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add a note about this call"
+                required
+                rows={3}
+                className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
               />
             </div>
 

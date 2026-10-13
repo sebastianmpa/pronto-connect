@@ -153,6 +153,7 @@ export default function AnsweredCallsTable() {
           { header: "Order", value: (call) => call.orderNumber },
           { header: "Contact reason", value: (call) => call.contactReason },
           { header: "Closure method", value: (call) => call.closureMethod },
+          { header: "Note", value: (call) => call.note ?? "" },
           { header: "Origin", value: (call) => call.origin === "goto" ? "GoTo" : "Zoho" },
         ],
       });
@@ -228,14 +229,14 @@ export default function AnsweredCallsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Call date", "Agent", "Customer phone", "Call ID", "Order", "Contact reason", "Closure method", "Origin"].map((label) => (
+                {["Call date", "Agent", "Customer phone", "Call ID", "Order", "Contact reason", "Closure method", "Note", "Origin"].map((label) => (
                   <TableCell key={label} isHeader className="whitespace-nowrap border border-gray-100 px-4 py-3 text-left text-theme-xs font-medium text-gray-700 dark:border-white/[0.05] dark:text-gray-400">{label}</TableCell>
                 ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
-                <TableRow><td colSpan={8} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No answered calls found.</td></TableRow>
+                <TableRow><td colSpan={9} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No answered calls found.</td></TableRow>
               ) : items.map((call) => (
                 <TableRow key={call.id}>
                   <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-800 dark:border-white/[0.05] dark:text-white/90">{formatDateTime(call.callDateTime)}</TableCell>
@@ -248,6 +249,7 @@ export default function AnsweredCallsTable() {
                   <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">{call.orderNumber || "—"}</TableCell>
                   <TableCell className="border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">{call.contactReason}</TableCell>
                   <TableCell className="border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">{call.closureMethod}</TableCell>
+                  <TableCell className="max-w-64 whitespace-pre-wrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">{call.note || "—"}</TableCell>
                   <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-sm text-gray-600 dark:border-white/[0.05] dark:text-gray-400">{call.origin === "goto" ? "GoTo" : "Zoho"}</TableCell>
                 </TableRow>
               ))}

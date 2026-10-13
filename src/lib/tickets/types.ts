@@ -5,6 +5,8 @@ export interface TicketsParams {
   limit?: number;
   email?: string;
   phone?: string;
+  department_id?: string;
+  assignee_id?: string;
 }
 
 // ─── Shared refs ───────────────────────────────────────────────────────────────
@@ -88,4 +90,16 @@ export interface TicketDetail extends TicketItem {
   product: string | null;
   customFields: Record<string, unknown>;
   counts: TicketCounts;
+}
+
+
+export interface TicketDepartmentOption {
+  id: string;
+  name: string;
+}
+
+export interface TicketAgentOption {
+  id: string;
+  name: string;
+  email: string | null;
 }

@@ -9,7 +9,7 @@ import {
 } from "../ui/table";
 import PaginationWithIcon from "../tables/DataTables/TableOne/PaginationWithIcon";
 import ticketsService from "../../lib/tickets/ticketsService";
-import type { TicketItem, TicketsParams } from "../../lib/tickets/types";
+import type { TicketAgentOption, TicketDepartmentOption, TicketItem, TicketsParams } from "../../lib/tickets/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -36,6 +36,11 @@ export default function TicketsTable() {
 
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [departments, setDepartments] = useState<TicketDepartmentOption[]>([]);
+  const [agents, setAgents] = useState<TicketAgentOption[]>([]);
+  const [agentsError, setAgentsError] = useState(false);
   const [limit, setLimit] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -57,6 +62,8 @@ export default function TicketsTable() {
           limit,
           ...(email && { email }),
           ...(phone && { phone }),
+          ...(departmentId && { department_id: departmentId }),
+          ...(assigneeId && { assignee_id: assigneeId }),
         };
         const res = await ticketsService.getPaginated(params);
         setItems(res.items);
@@ -69,8 +76,39 @@ export default function TicketsTable() {
         setLoading(false);
       }
     },
-    [limit, email, phone]
+    [limit, email, phone, departmentId, assigneeId]
   );
+
+  useEffect(() => {
+    let active = true;
+    ticketsService.getDepartments()
+      .then((departmentOptions) => {
+        if (!active) return;
+        setDepartments(departmentOptions);
+      })
+      .catch(() => {
+        if (active) setError("Unable to load the department list.");
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    ticketsService.getAgents(departmentId || undefined)
+      .then((agentOptions) => {
+        if (active) {
+          setAgents(agentOptions);
+          setAgentsError(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAgents([]);
+          setAgentsError(true);
+        }
+      });
+    return () => { active = false; };
+  }, [departmentId]);
 
   useEffect(() => {
     fetchTickets(1);
@@ -105,6 +143,14 @@ export default function TicketsTable() {
           onChange={(e) => setPhone(e.target.value)}
           className={`${inputCls} w-40`}
         />
+        <select aria-label="Departamento" value={departmentId} onChange={(e) => { setDepartmentId(e.target.value); setAssigneeId(""); }} className={`${inputCls} w-56`}>
+          <option value="">Todos los departamentos</option>
+          {departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}
+        </select>
+        <select aria-label="Agente asignado" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)} className={`${inputCls} w-56`}>
+          <option value="">Todos los agentes</option>
+          {agents.map((agent) => <option key={agent.id} value={agent.id}>{agent.name}</option>)}
+        </select>
 
         {/* Entries per page */}
         <div className="flex items-center gap-2">
@@ -142,6 +188,7 @@ export default function TicketsTable() {
             {error}
           </div>
         )}
+        {agentsError && <p className="mx-4 text-xs text-amber-700">No se pudo cargar la lista de agentes; puedes filtrar por departamento y datos del cliente.</p>}
 
         {loading ? (
           <div className="flex items-center justify-center py-16">

@@ -8,6 +8,7 @@ export interface CreateAnsweredCallPayload {
   customerPhoneNumber: string;
   contactReason: string;
   closureMethod: string;
+  note: string;
   origin: "goto" | "zoho";
 }
 
@@ -38,6 +39,7 @@ export interface AnsweredCallItem {
   orderNumber: string | null;
   contactReason: string;
   closureMethod: string;
+  note?: string | null;
   origin: "goto" | "zoho";
   createdAt: string;
   updatedAt: string;

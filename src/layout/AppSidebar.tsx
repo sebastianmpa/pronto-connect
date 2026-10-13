@@ -8,8 +8,8 @@ import {
   BoxCubeIcon,
   // CalenderIcon,
   CallIcon,
-  ZohoIcon,
   GoToIcon,
+  ZohoIcon,
   // CartIcon,
   // ChatIcon,
   ChevronDownIcon,
@@ -99,6 +99,14 @@ const navItems: NavItem[] = [
     icon: <GoToIcon />,
     name: "Answered Calls",
     path: "/answered-calls",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Estadísticas",
+    subItems: [
+      { name: "Resumen de atención", path: "/customer-attention/metrics" },
+      { name: "Detalle de llamadas", path: "/customer-attention/calls" },
+    ],
   },
 ];
 
