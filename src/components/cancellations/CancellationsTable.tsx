@@ -31,7 +31,6 @@ type SortField = NonNullable<CancellationsParams["sortBy"]>;
 type SortState = { field: SortField; order: "asc" | "desc" } | null;
 
 const sortableColumns: { label: string; field: SortField }[] = [
-  { label: "Order #", field: "orderNumber" },
   { label: "Order Date", field: "orderDate" },
   { label: "Cancelled On", field: "cancellationDate" },
   { label: "Reason", field: "reason" },
@@ -59,7 +58,6 @@ function formatRefundedPrice(value: CancellationItem["refundedprice"]): string {
 export default function CancellationsTable() {
   const navigate = useNavigate();
 
-  const [orderNumber, setOrderNumber] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [user, setUser] = useState("");
@@ -98,12 +96,11 @@ export default function CancellationsTable() {
       page: p,
       limit: pageLimit,
       ...(sort && { sortBy: sort.field, sortOrder: sort.order }),
-      ...(orderNumber && { orderNumber }),
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
       ...(user && { user }),
     }),
-    [orderNumber, startDate, endDate, user, sort],
+    [startDate, endDate, user, sort],
   );
 
   const handleSort = (field: SortField) => {
@@ -181,14 +178,6 @@ export default function CancellationsTable() {
         onSubmit={handleSearch}
         className="flex flex-col gap-3 px-4 py-4 border border-b-0 border-gray-100 dark:border-white/[0.05] rounded-t-xl sm:flex-row sm:flex-wrap sm:items-end"
       >
-        <input
-          type="text"
-          placeholder="Order #"
-          value={orderNumber}
-          onChange={(e) => setOrderNumber(e.target.value)}
-          className={`${inputCls} w-36`}
-        />
-
         <div className="flex flex-col gap-1">
           <label className="text-xs text-gray-500 dark:text-gray-400">Start date</label>
           <input
@@ -281,7 +270,7 @@ export default function CancellationsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {[...sortableColumns, { label: "", field: null }].map(({ label, field }) => (
+                {[{ label: "Order #", field: null }, ...sortableColumns, { label: "", field: null }].map(({ label, field }) => (
                   <TableCell
                     key={label}
                     isHeader
@@ -299,6 +288,8 @@ export default function CancellationsTable() {
                           {sort?.field === field ? (sort.order === "asc" ? "↑" : "↓") : "↕"}
                         </span>
                       </button>
+                    ) : label ? (
+                      <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
                     ) : null}
                   </TableCell>
                 ))}
