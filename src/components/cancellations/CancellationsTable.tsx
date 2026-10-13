@@ -27,6 +27,19 @@ const EyeIcon = () => (
 const inputCls =
   "h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30";
 
+type SortField = NonNullable<CancellationsParams["sortBy"]>;
+type SortState = { field: SortField; order: "asc" | "desc" } | null;
+
+const sortableColumns: { label: string; field: SortField }[] = [
+  { label: "Order #", field: "orderNumber" },
+  { label: "Order Date", field: "orderDate" },
+  { label: "Cancelled On", field: "cancellationDate" },
+  { label: "Reason", field: "reason" },
+  { label: "Type", field: "type" },
+  { label: "User", field: "user" },
+  { label: "Amount", field: "refundedprice" },
+];
+
 function formatRefundedPrice(value: CancellationItem["refundedprice"]): string {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -53,6 +66,7 @@ export default function CancellationsTable() {
   const [users, setUsers] = useState<string[]>([]);
   const [limit, setLimit] = useState(25);
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<SortState>(null);
 
   const [items, setItems] = useState<CancellationItem[]>([]);
   const [totalPages, setTotalPages] = useState(1);
@@ -83,13 +97,21 @@ export default function CancellationsTable() {
     (p: number, pageLimit: number): CancellationsParams => ({
       page: p,
       limit: pageLimit,
+      ...(sort && { sortBy: sort.field, sortOrder: sort.order }),
       ...(orderNumber && { orderNumber }),
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
       ...(user && { user }),
     }),
-    [orderNumber, startDate, endDate, user],
+    [orderNumber, startDate, endDate, user, sort],
   );
+
+  const handleSort = (field: SortField) => {
+    setSort((current) => ({
+      field,
+      order: current?.field === field && current.order === "asc" ? "desc" : "asc",
+    }));
+  };
 
   const openDetail = (salesOrderId: number) => navigate(`/cancellations/${salesOrderId}`);
 
@@ -259,13 +281,25 @@ export default function CancellationsTable() {
           <Table>
             <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]">
               <TableRow>
-                {["Order #", "Order Date", "Cancelled On", "Reason", "Type", "User", "Amount", ""].map((label) => (
+                {[...sortableColumns, { label: "", field: null }].map(({ label, field }) => (
                   <TableCell
                     key={label}
                     isHeader
                     className="px-4 py-3 border border-gray-100 dark:border-white/[0.05]"
                   >
-                    <p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p>
+                    {field ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(field)}
+                        aria-label={`Sort by ${label}${sort?.field === field ? ` ${sort.order === "asc" ? "descending" : "ascending"}` : " ascending"}`}
+                        className="inline-flex items-center gap-1 font-medium text-gray-700 text-theme-xs dark:text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"
+                      >
+                        {label}
+                        <span aria-hidden="true" className="text-gray-400">
+                          {sort?.field === field ? (sort.order === "asc" ? "↑" : "↓") : "↕"}
+                        </span>
+                      </button>
+                    ) : null}
                   </TableCell>
                 ))}
               </TableRow>

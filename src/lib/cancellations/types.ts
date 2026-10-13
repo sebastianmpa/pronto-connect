@@ -3,6 +3,8 @@
 export interface CancellationsParams {
   page?: number;
   limit?: number;
+  sortBy?: "orderNumber" | "orderDate" | "cancellationDate" | "reason" | "type" | "user" | "refundedprice";
+  sortOrder?: "asc" | "desc";
   orderNumber?: string;
   startDate?: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
