@@ -4,6 +4,8 @@ import type {
   AgentMapping,
   AnalyticsQuery,
   Channel,
+  CallReasonStatsResponse,
+  ChatStatsResponse,
   CustomerAttentionCallDetail,
   CustomerAttentionCallsResponse,
   QualifiedCallDetailsResponse,
@@ -12,11 +14,35 @@ import type {
   OccupancyResponse,
   OutcomesResponse,
   VolumeResponse,
+  TicketStatsResponse,
 } from "./types";
 
 const BASE_PATH = "/customer-attention/atc/v0";
 
 export const customerAttentionService = {
+  async ticketStats(query: Pick<AnalyticsQuery, "from" | "to" | "department_id">, signal: AbortSignal) {
+    const { from, to, department_id } = query;
+    const { data } = await apiClient.get<TicketStatsResponse>(`${BASE_PATH}/ticket-stats`, {
+      params: { from, to, ...(department_id ? { department_id } : {}) },
+      signal,
+    });
+    return data;
+  },
+  async callReasons(query: Pick<AnalyticsQuery, "from" | "to"> & { agent_email?: string; closure_method?: string }, signal: AbortSignal) {
+    const { from, to, agent_email, closure_method } = query;
+    const { data } = await apiClient.get<CallReasonStatsResponse>(`${BASE_PATH}/call-reasons`, {
+      params: { from, to, ...(agent_email ? { agent_email } : {}), ...(closure_method ? { closure_method } : {}) },
+      signal,
+    });
+    return data;
+  },
+  async chatStats(query: Pick<AnalyticsQuery, "from" | "to" | "department_id" | "agent_id">, signal: AbortSignal) {
+    const { data } = await apiClient.get<ChatStatsResponse>(`${BASE_PATH}/chat-stats`, {
+      params: query,
+      signal,
+    });
+    return data;
+  },
   async metrics(query: AnalyticsQuery, channels: Channel[], signal: AbortSignal) {
     const { data } = await apiClient.get<MetricsResponse>(`${BASE_PATH}/metrics`, {
       params: { ...query, channels: channels.filter((channel) => channel !== "email").join(",") },

@@ -106,6 +106,9 @@ const navItems: NavItem[] = [
     subItems: [
       { name: "Resumen de atención", path: "/customer-attention/metrics" },
       { name: "Detalle de llamadas", path: "/customer-attention/calls" },
+      { name: "Estadísticas de tickets", path: "/customer-attention/tickets" },
+      { name: "Motivos de llamadas", path: "/customer-attention/call-reasons" },
+      { name: "Estadísticas de chats", path: "/customer-attention/chats" },
     ],
   },
 ];

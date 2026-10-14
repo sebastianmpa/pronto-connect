@@ -18,6 +18,10 @@ function percent(value: number | null) {
   return value == null ? "—" : `${percentFormat.format(value)} %`;
 }
 
+function complementaryPercent(value: number | null) {
+  return value == null ? "—" : `${percentFormat.format(100 - Math.round(value * 10) / 10)} %`;
+}
+
 function callDate(value: string | null) {
   if (!value) return "Fecha no disponible";
   const date = new Date(value);
@@ -95,19 +99,25 @@ export default function CustomerAttentionCalls() {
     setApplied({ from, to, agentId });
   }
 
-  const queues = outcomes?.current.by_queue ?? [];
+  const queues = [...(outcomes?.current.by_queue ?? [])].sort((a, b) => b.total - a.total || (a.queue_name || a.queue_id || "").localeCompare(b.queue_name || b.queue_id || ""));
+  const queueTotal = queues.reduce((sum, item) => sum + item.total, 0);
+  const queueColors = ["#465FFF", "#8B5CF6", "#12B76A", "#F79009"];
   const chartOptions: ApexOptions = {
-    chart: { type: "bar", stacked: true, toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-    colors: ["#12B76A", "#F04438"],
-    plotOptions: { bar: { horizontal: true, barHeight: "58%", borderRadius: 4 } },
-    dataLabels: { enabled: false },
+    chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
+    colors: queues.map((_, index) => queueColors[index % queueColors.length]),
+    plotOptions: { bar: { horizontal: true, distributed: true, barHeight: "82%", borderRadius: 5, dataLabels: { position: "center" } } },
+    dataLabels: { enabled: true, formatter: (_value, options) => {
+      const queue = queues[options.dataPointIndex];
+      return queue?.total ? `${numberFormat.format(queue.total)} · ${percent(queueTotal ? queue.total / queueTotal * 100 : null)}` : "";
+    }, style: { colors: ["#fff"], fontSize: "12px", fontWeight: 600 } },
     xaxis: { categories: queues.map((item) => item.queue_name || item.queue_id || "Sin cola"), labels: { formatter: (value) => numberFormat.format(Number(value)) } },
-    legend: { position: "bottom" },
+    legend: { show: false },
+    tooltip: { y: { formatter: (_value, options) => {
+      const queue = queues[options.dataPointIndex];
+      return `${numberFormat.format(queue?.total ?? 0)} llamadas · ${percent(queueTotal ? (queue?.total ?? 0) / queueTotal * 100 : null)}`;
+    } } },
   };
-  const chartSeries = [
-    { name: "Atendidas", data: queues.map((item) => item.handled) },
-    { name: "No atendidas", data: queues.map((item) => item.unattended) },
-  ];
+  const chartSeries = [{ name: "Llamadas", data: queues.map((item) => item.total) }];
 
   return <>
     <PageMeta title="Detalle de llamadas | Pronto Connect" description="Consultas y detalle de llamadas GoTo" />
@@ -126,10 +136,10 @@ export default function CustomerAttentionCalls() {
       {loading && <p role="status" className="text-sm text-gray-500">Cargando llamadas…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{error}</p>}
 
-      <ComponentCard title="Llamadas por cola" desc="Registros de interacciones GoTo en cola. Abre una cola para revisar sus llamadas y el detalle estructurado de cada interacción.">
+      <ComponentCard title="Llamadas por cola" desc="Barras ordenadas por volumen; la tabla conserva el desglose de atendidas y no atendidas. Abre una cola para revisar cada interacción.">
         {outcomes && queues.length ? <>
-          <div className="mb-4 min-w-0 overflow-x-auto" aria-label="Llamadas atendidas y no atendidas por cola"><Chart options={chartOptions} series={chartSeries} type="bar" height={Math.max(240, queues.length * 42)} /></div>
-          <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="border-b border-gray-200 text-gray-500 dark:border-gray-700"><tr><th className="p-3">Cola</th><th className="p-3">Total</th><th className="p-3">Atendidas</th><th className="p-3">No atendidas</th><th className="p-3">Atendidas %</th><th className="p-3">Acción</th></tr></thead><tbody>{queues.map((item) => <tr key={`${item.queue_id ?? ""}:${item.queue_name ?? ""}`} className="border-b border-gray-100 dark:border-gray-800"><td className="p-3 font-medium">{item.queue_name || item.queue_id || "Sin cola"}</td><td className="p-3">{numberFormat.format(item.total)}</td><td className="p-3">{numberFormat.format(item.handled)}</td><td className="p-3">{numberFormat.format(item.unattended)}</td><td className="p-3">{percent(item.attended_percent)}</td><td className="p-3"><button type="button" disabled={!item.queue_id} onClick={() => { setQueue(item); setQueueModalOpen(true); }} className="whitespace-nowrap font-medium text-brand-600 disabled:opacity-40">Ver llamadas</button></td></tr>)}</tbody></table></div>
+          <div className="mb-4 min-w-0 overflow-x-auto" aria-label="Volumen total de llamadas por cola"><Chart options={chartOptions} series={chartSeries} type="bar" height={Math.max(260, queues.length * 56)} /></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b border-gray-200 text-gray-500 dark:border-gray-700"><tr><th className="p-3">Cola</th><th className="p-3">Total</th><th className="p-3">Atendidas</th><th className="p-3">No atendidas</th><th className="p-3">Atendidas %</th><th className="p-3">No atendidas %</th><th className="p-3">Acción</th></tr></thead><tbody>{queues.map((item) => <tr key={`${item.queue_id ?? ""}:${item.queue_name ?? ""}`} className="border-b border-gray-100 dark:border-gray-800"><td className="p-3 font-medium">{item.queue_name || item.queue_id || "Sin cola"}</td><td className="p-3">{numberFormat.format(item.total)}</td><td className="p-3">{numberFormat.format(item.handled)}</td><td className="p-3">{numberFormat.format(item.unattended)}</td><td className="p-3">{percent(item.attended_percent)}</td><td className="p-3">{complementaryPercent(item.attended_percent)}</td><td className="p-3"><button type="button" disabled={!item.queue_id} onClick={() => { setQueue(item); setQueueModalOpen(true); }} className="whitespace-nowrap font-medium text-brand-600 disabled:opacity-40">Ver llamadas</button></td></tr>)}</tbody><tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-900"><tr><td className="p-3">Total general</td><td className="p-3">{numberFormat.format(outcomes!.current.overall.total)}</td><td className="p-3">{numberFormat.format(outcomes!.current.overall.handled)}</td><td className="p-3">{numberFormat.format(outcomes!.current.overall.unattended)}</td><td className="p-3">{percent(outcomes!.current.overall.attended_percent)}</td><td className="p-3">{complementaryPercent(outcomes!.current.overall.attended_percent)}</td><td className="p-3">—</td></tr></tfoot></table></div>
         </> : !loading && !error ? <Empty text="No hay llamadas en colas para este período." /> : null}
       </ComponentCard>
 

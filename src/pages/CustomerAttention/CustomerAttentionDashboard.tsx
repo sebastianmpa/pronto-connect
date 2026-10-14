@@ -25,6 +25,12 @@
     { id: "ticket", label: "Tickets" },
     { id: "email", label: "Emails" },
   ];
+  const CHANNEL_COLORS: Record<Channel, string> = {
+    call: "#465FFF",
+    chat: "#12B76A",
+    ticket: "#F79009",
+    email: "#8B5CF6",
+  };
   const numberFormat = new Intl.NumberFormat("es-CO");
   const percentFormat = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
 
@@ -125,6 +131,10 @@
 
   function percentage(value: number | null | undefined) {
     return value == null ? "—" : `${percentFormat.format(value)} %`;
+  }
+
+  function complementaryPercentage(value: number | null | undefined) {
+    return value == null ? "—" : `${percentFormat.format(100 - Math.round(value * 10) / 10)} %`;
   }
 
   function comparisonText(current: number, previous: number | undefined) {
@@ -323,6 +333,10 @@
         rows?.reduce((total, row) => total + row.total, 0) ?? 0;
       return { current: sum(data.volume?.current), comparison: data.volume?.comparison ? sum(data.volume.comparison) : undefined };
     }, [data.volume]);
+    const channelTotals = useMemo(() => CHANNELS.filter((channel) => applied.channels.includes(channel.id)).map((channel) => {
+      const total = data.volume?.current.filter((row) => row.channel === channel.id).reduce((sum, row) => sum + row.total, 0) ?? 0;
+      return { ...channel, total, percent: volumeTotals.current ? (total / volumeTotals.current) * 100 : 0 };
+    }).sort((a, b) => b.total - a.total || CHANNELS.findIndex((channel) => channel.id === a.id) - CHANNELS.findIndex((channel) => channel.id === b.id)), [applied.channels, data.volume, volumeTotals.current]);
 
     const dates = useMemo(
       () => [...new Set(data.volume?.current.map((row) => row.date) ?? [])].sort(),
@@ -330,7 +344,7 @@
     );
     const chartOptions: ApexOptions = {
       chart: { type: "area", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-      colors: ["#465FFF", "#12B76A", "#F79009", "#8B5CF6"],
+      colors: CHANNELS.filter((channel) => applied.channels.includes(channel.id)).map((channel) => CHANNEL_COLORS[channel.id]),
       dataLabels: { enabled: false },
       stroke: { curve: "smooth", width: 2 },
       xaxis: { categories: dates, labels: { rotate: -45 } },
@@ -342,6 +356,20 @@
       name: channel.label,
       data: dates.map((date) => data.volume?.current.find((row) => row.date === date && row.channel === channel.id)?.total ?? 0),
     }));
+    const channelChartOptions: ApexOptions = {
+      chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
+      colors: channelTotals.map((channel) => CHANNEL_COLORS[channel.id]),
+      plotOptions: { bar: { horizontal: true, distributed: true, barHeight: "82%", borderRadius: 5, dataLabels: { position: "center" } } },
+      dataLabels: { enabled: true, formatter: (_value, options) => {
+        const row = channelTotals[options.dataPointIndex];
+        return row?.total ? `${numberFormat.format(row.total)} · ${percentage(row.percent)}` : "";
+      }, style: { colors: ["#fff"], fontSize: "12px", fontWeight: 600 } },
+      xaxis: { categories: channelTotals.map((row) => row.label), labels: { formatter: (value) => numberFormat.format(Number(value)) } },
+      yaxis: { labels: { maxWidth: 180 } },
+      legend: { show: false },
+      tooltip: { y: { formatter: (_value, options) => `${numberFormat.format(channelTotals[options.dataPointIndex]?.total ?? 0)} contactos · ${percentage(channelTotals[options.dataPointIndex]?.percent)}` } },
+    };
+    const channelChartSeries = [{ name: "Contactos", data: channelTotals.map((row) => row.total) }];
 
     function applyFilters(event: React.FormEvent<HTMLFormElement>) {
       event.preventDefault();
@@ -364,24 +392,30 @@
     const byChannel = data.metrics?.current.by_channel;
     const comparisonByChannel = data.metrics?.comparison?.by_channel;
     const selectedMetrics = CHANNELS.filter((channel) => channel.id !== "email" && applied.channels.includes(channel.id));
-    const outcomeQueues = data.outcomes?.current.by_queue ?? [];
+    const outcomeQueues = [...(data.outcomes?.current.by_queue ?? [])]
+      .sort((a, b) => b.total - a.total || (a.queue_name || a.queue_id || "").localeCompare(b.queue_name || b.queue_id || ""));
+    const outcomeTotal = outcomeQueues.reduce((sum, queue) => sum + queue.total, 0);
+    const outcomeColors = ["#465FFF", "#8B5CF6", "#12B76A", "#F79009"];
     const outcomeChartOptions: ApexOptions = {
-      chart: { type: "bar", stacked: true, toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
-      colors: ["#12B76A", "#F04438"],
-      plotOptions: { bar: { horizontal: true, barHeight: "58%", borderRadius: 4 } },
-      dataLabels: { enabled: false },
+      chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
+      colors: outcomeQueues.map((_, index) => outcomeColors[index % outcomeColors.length]),
+      plotOptions: { bar: { horizontal: true, distributed: true, barHeight: "82%", borderRadius: 5, dataLabels: { position: "center" } } },
+      dataLabels: { enabled: true, formatter: (_value, options) => {
+        const queue = outcomeQueues[options.dataPointIndex];
+        return queue?.total ? `${numberFormat.format(queue.total)} · ${percentage(outcomeTotal ? queue.total / outcomeTotal * 100 : null)}` : "";
+      }, style: { colors: ["#fff"], fontSize: "12px", fontWeight: 600 } },
       xaxis: {
         categories: outcomeQueues.map((queue) => queue.queue_name || queue.queue_id || "Sin cola"),
         labels: { formatter: (value) => numberFormat.format(Number(value)) },
       },
       yaxis: { labels: { maxWidth: 220 } },
-      legend: { position: "bottom" },
-      tooltip: { y: { formatter: (value) => `${numberFormat.format(value)} llamadas` } },
+      legend: { show: false },
+      tooltip: { y: { formatter: (_value, options) => {
+        const queue = outcomeQueues[options.dataPointIndex];
+        return `${numberFormat.format(queue?.total ?? 0)} llamadas · ${percentage(outcomeTotal ? (queue?.total ?? 0) / outcomeTotal * 100 : null)}`;
+      } } },
     };
-    const outcomeChartSeries = [
-      { name: "Atendidas", data: outcomeQueues.map((queue) => queue.handled) },
-      { name: "No atendidas", data: outcomeQueues.map((queue) => queue.unattended) },
-    ];
+    const outcomeChartSeries = [{ name: "Llamadas", data: outcomeQueues.map((queue) => queue.total) }];
 
     return (
       <>
@@ -398,7 +432,7 @@
                 <label className="text-sm text-gray-700 dark:text-gray-300 xl:col-span-2">Hasta
                   <div className="mt-1"><DateFilterInput label="Hasta" value={form.to} onChange={(to) => setForm((current) => ({ ...current, to }))} /></div>
                 </label>
-                <label className="text-sm text-gray-700 dark:text-gray-300 xl:col-span-4">Agente
+                <label className="text-sm text-gray-700 dark:text-gray-300 xl:col-span-2">Agente
                   <select value={form.agent} onChange={(event) => setForm({ ...form, agent: event.target.value })} className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
                     <option value="all">Todos los agentes</option>
                     {agentOptions(candidates, fallbackAgents).map((group) => (
@@ -412,7 +446,7 @@
                     ))}
                   </select>
                 </label>
-                <fieldset className="min-w-0 text-sm text-gray-700 dark:text-gray-300 xl:col-span-4">
+                <fieldset className="min-w-0 text-sm text-gray-700 dark:text-gray-300 xl:col-span-3">
                   <legend>Canales</legend>
                   <div className="mt-1 flex min-h-9 flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-gray-300 px-3 py-2 dark:border-gray-700">
                     {CHANNELS.map((channel) => (
@@ -465,7 +499,7 @@
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Kpi label="Contactos registrados" value={data.volume ? numberFormat.format(volumeTotals.current) : "—"} detail={comparisonText(volumeTotals.current, volumeTotals.comparison)} />
                 <Kpi label="Interacciones con métricas" value={data.metrics ? numberFormat.format(data.metrics.current.overall.interactions) : "—"} detail={data.metrics?.comparison ? comparisonText(data.metrics.current.overall.interactions, data.metrics.comparison.overall.interactions) : undefined} />
-                <Kpi label="Llamadas atendidas" value={data.outcomes ? percentage(data.outcomes.current.overall.attended_percent) : "—"} detail={data.outcomes?.comparison ? `Comparativo: ${percentage(data.outcomes.comparison.overall.attended_percent)}` : undefined} />
+                <Kpi label="Tasa de atención de llamadas" value={data.outcomes ? percentage(data.outcomes.current.overall.attended_percent) : "—"} detail={data.outcomes ? `${complementaryPercentage(data.outcomes.current.overall.attended_percent)} no atendidas${data.outcomes.comparison ? ` · Comparativo atendidas: ${percentage(data.outcomes.comparison.overall.attended_percent)}` : ""}` : undefined} />
                 <Kpi label="Ocupación GoTo" value={data.occupancy ? percentage(data.occupancy.overall.occupancy_percent) : "—"} detail="Tiempo atendiendo / tiempo disponible" />
               </div>
 
@@ -485,6 +519,10 @@
                     <p className="col-span-full text-xs text-gray-500">Actual / comparativo</p>
                   </div>
                 )}
+              </ComponentCard>
+
+              <ComponentCard title="Volumen total por canal" desc="El porcentaje de cada barra se calcula sobre el total de los canales seleccionados.">
+                {errors.volume ? <p role="alert" className="text-sm text-red-600">{errors.volume}</p> : volumeTotals.current ? <div className="min-w-0 overflow-x-auto" aria-label="Volumen total por canal"><Chart options={channelChartOptions} series={channelChartSeries} type="bar" height={Math.max(220, channelTotals.length * 64)} /></div> : <Empty text="No hay contactos en este período." />}
               </ComponentCard>
 
               {selectedMetrics.length > 0 && <ComponentCard title="Tiempos por canal" desc="p50 = mediana; p90 = el 90 % de los casos está por debajo. Los tiempos se expresan en tiempo calendario.">
@@ -529,13 +567,13 @@
                       </div>
                     </div>
                     {outcomesView === "chart" ? (
-                      <div className="min-w-0 overflow-x-auto" aria-label="Llamadas atendidas y no atendidas por cola">
+                      <div className="min-w-0 overflow-x-auto" aria-label="Volumen total de llamadas por cola">
                         <Chart options={outcomeChartOptions} series={outcomeChartSeries} type="bar" height={Math.max(260, outcomeQueues.length * 48)} />
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[650px] text-left text-sm">
-                          <thead className="border-b border-gray-200 text-gray-500 dark:border-gray-800"><tr><th className="p-3">Cola</th><th className="p-3">Total</th><th className="p-3">Atendidas</th><th className="p-3">No atendidas</th><th className="p-3">% atendidas</th><th className="p-3">Motivo principal no atendido</th></tr></thead>
+                          <thead className="border-b border-gray-200 text-gray-500 dark:border-gray-800"><tr><th className="p-3">Cola</th><th className="p-3">Total</th><th className="p-3">Atendidas</th><th className="p-3">No atendidas</th><th className="p-3">% atendidas</th><th className="p-3">% no atendidas</th><th className="p-3">Motivo principal no atendido</th></tr></thead>
                           <tbody>{outcomeQueues.map((queue) => (
                             <tr key={`${queue.queue_id ?? ""}:${queue.queue_name ?? ""}`} className="border-b border-gray-100 dark:border-gray-800">
                               <td className="p-3 font-medium text-gray-800 dark:text-gray-200">{queue.queue_name || queue.queue_id || "Sin cola"}</td>
@@ -543,9 +581,11 @@
                               <td className="p-3">{numberFormat.format(queue.handled)}</td>
                               <td className="p-3">{numberFormat.format(queue.unattended)}</td>
                               <td className="p-3">{percentage(queue.attended_percent)}</td>
+                              <td className="p-3">{complementaryPercentage(queue.attended_percent)}</td>
                               <td className="p-3">{queue.unattended_reasons[0] ? `${queue.unattended_reasons[0].outcome ?? "Sin resultado"}${queue.unattended_reasons[0].left_queue_reason ? ` · ${queue.unattended_reasons[0].left_queue_reason}` : ""}` : "—"}</td>
                             </tr>
                           ))}</tbody>
+                          <tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-900"><tr><td className="p-3">Total general</td><td className="p-3">{numberFormat.format(data.outcomes?.current.overall.total ?? 0)}</td><td className="p-3">{numberFormat.format(data.outcomes?.current.overall.handled ?? 0)}</td><td className="p-3">{numberFormat.format(data.outcomes?.current.overall.unattended ?? 0)}</td><td className="p-3">{percentage(data.outcomes?.current.overall.attended_percent)}</td><td className="p-3">{complementaryPercentage(data.outcomes?.current.overall.attended_percent)}</td><td className="p-3">—</td></tr></tfoot>
                         </table>
                       </div>
                     )}
@@ -568,6 +608,7 @@
                           <td className="p-3">{duration(agent.idle_seconds)}</td>
                         </tr>
                       ))}</tbody>
+                      <tfoot className="border-t-2 border-gray-200 bg-gray-50 font-semibold dark:border-gray-700 dark:bg-gray-900"><tr><td className="p-3">Total general</td><td className="p-3">{percentage(data.occupancy.overall.occupancy_percent)}</td><td className="p-3">{duration(data.occupancy.overall.available_seconds)}</td><td className="p-3">{duration(data.occupancy.overall.talk_seconds)}</td><td className="p-3">{duration(data.occupancy.overall.idle_seconds)}</td></tr></tfoot>
                     </table>
                   </div>
                 ) : <Empty text="No hay sesiones GoTo en este período." />}

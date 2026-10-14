@@ -36,6 +36,9 @@ import Marketing from "./pages/Dashboard/Marketing";
 import Analytics from "./pages/Dashboard/Analytics";
 import CustomerAttentionDashboard from "./pages/CustomerAttention/CustomerAttentionDashboard";
 import CustomerAttentionCalls from "./pages/CustomerAttention/CustomerAttentionCalls";
+import CustomerAttentionTickets from "./pages/CustomerAttention/CustomerAttentionTickets";
+import CustomerAttentionCallReasons from "./pages/CustomerAttention/CustomerAttentionCallReasons";
+import CustomerAttentionChats from "./pages/CustomerAttention/CustomerAttentionChats";
 import SignIn from "./pages/AuthPages/SignIn";
 import SignUp from "./pages/AuthPages/SignUp";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -168,6 +171,9 @@ export default function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/customer-attention/metrics" element={<CustomerAttentionDashboard />} />
             <Route path="/customer-attention/calls" element={<CustomerAttentionCalls />} />
+            <Route path="/customer-attention/tickets" element={<CustomerAttentionTickets />} />
+            <Route path="/customer-attention/call-reasons" element={<CustomerAttentionCallReasons />} />
+            <Route path="/customer-attention/chats" element={<CustomerAttentionChats />} />
             <Route path="/marketing" element={<Marketing />} />
             <Route path="/crm" element={<Crm />} />
             <Route path="/stocks" element={<Stocks />} />
