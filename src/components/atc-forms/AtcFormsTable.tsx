@@ -532,7 +532,7 @@ export default function AtcFormsTable() {
           title={
             formTypesError
               ? "Client Request types could not be loaded. Refresh to try again."
-              : "Create a Claim, Return, or Cancellation request"
+              : "Create a Claim or Return request"
           }
           className="h-9 rounded-lg bg-gray-800 px-4 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >

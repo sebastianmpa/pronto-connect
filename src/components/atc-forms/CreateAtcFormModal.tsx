@@ -15,7 +15,6 @@ import type { AtcFormSubmissionType } from "../../lib/atc-forms/types";
 const SUPPORTED_TYPES: AtcFormSubmissionType[] = [
   "claim",
   "return",
-  "cancellation",
 ];
 
 const TYPE_LABELS: Record<AtcFormSubmissionType, string> = {
@@ -475,8 +474,8 @@ export default function CreateAtcFormModal({
 
         {availableTypes.length === 0 ? (
           <div className="rounded-lg bg-warning-50 px-4 py-3 text-sm text-warning-700 dark:bg-warning-500/10 dark:text-warning-400">
-            Claim, Return, and Cancellation types are not available from the
-            request-types service.
+            Claim and Return types are not available from the request-types
+            service.
           </div>
         ) : (
           <>
