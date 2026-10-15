@@ -63,7 +63,9 @@ export default function CustomersTable() {
           ...(phone && { phone }),
         };
         const res = await customersService.search(params);
-        setItems(res.items);
+        // The API may omit `items` for an empty or unexpected response.
+        // Keep the table state an array so rendering and pagination remain safe.
+        setItems(Array.isArray(res.items) ? res.items : []);
         setTotalPages(res.totalPages);
         setTotalItems(res.totalItems);
         setCurrentPage(res.currentPage);

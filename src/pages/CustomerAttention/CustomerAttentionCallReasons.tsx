@@ -55,7 +55,7 @@ export default function CustomerAttentionCallReasons() {
     chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
     colors: reasons.map((_, index) => reasonColors[index % reasonColors.length]),
     plotOptions: { bar: { horizontal: true, barHeight: "82%", borderRadius: 5, distributed: true, dataLabels: { position: "center" } } },
-    dataLabels: { enabled: true, formatter: (value, context) => {
+    dataLabels: { enabled: true, formatter: (value) => {
       const share = data?.overall.total_qualifications ? (Number(value) / data.overall.total_qualifications) * 100 : 0;
       return Number(value) ? `${numberFormat.format(Number(value))} · ${percentFormat.format(share)} %` : "";
     }, style: { colors: ["#fff"], fontSize: "12px", fontWeight: 600 } }, xaxis: { min: 0, labels: { formatter: (value) => numberFormat.format(Number(value)) } },
