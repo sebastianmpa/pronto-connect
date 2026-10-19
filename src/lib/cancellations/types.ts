@@ -84,6 +84,8 @@ interface CreateCancellationPayloadBase {
   reason: string;
   note?: string;
   atcFormId?: number;
+  cancellationReasonId?: string;
+  cancellationSubReasonId?: string;
 }
 
 export type CreateCancellationPayload =

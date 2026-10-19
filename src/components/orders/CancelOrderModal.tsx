@@ -4,6 +4,8 @@ import Label from "../form/Label";
 import TextArea from "../form/input/TextArea";
 import Radio from "../form/input/Radio";
 import cancellationsService from "../../lib/cancellations/cancellationsService";
+import cancellationReasonsService from "../../lib/cancellation-reasons/cancellationReasonsService";
+import type { CancellationReason } from "../../lib/cancellation-reasons/types";
 import type { OrderDetail as OrderDetailType } from "../../lib/orders/types";
 import type {
   CancellationRequestItem,
@@ -19,6 +21,7 @@ interface CancelOrderModalProps {
 
   /** Optional values used when the modal is opened from a Client Request. */
   initialReason?: string;
+  initialSubReason?: string;
   initialNote?: string;
   /** Preserves the comment from a newly created Client Request. */
   isNewClientRequestFlow?: boolean;
@@ -68,19 +71,6 @@ function normalizeReason(value: string): string {
     .replace(/\s+/g, " ");
 }
 
-function uniqueReasons(values: string[]): string[] {
-  const seen = new Set<string>();
-
-  return values
-    .map((value) => String(value ?? "").trim())
-    .filter((value) => {
-      if (!value) return false;
-      const key = normalizeReason(value);
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
 
 export default function CancelOrderModal({
   isOpen,
@@ -88,6 +78,7 @@ export default function CancelOrderModal({
   order,
   onCancelled,
   initialReason = "",
+  initialSubReason = "",
   initialNote = "",
   isNewClientRequestFlow = false,
   clientRequestId,
@@ -98,7 +89,9 @@ export default function CancelOrderModal({
   const hideReasonAndNote = isBigCommerceCancellation;
   const [type, setType] = useState<"Total" | "Partial">("Total");
   const [reason, setReason] = useState("");
-  const [reasons, setReasons] = useState<string[]>([]);
+  const [reasonId, setReasonId] = useState("");
+  const [subReasonId, setSubReasonId] = useState("");
+  const [reasons, setReasons] = useState<CancellationReason[]>([]);
   const [reasonsLoading, setReasonsLoading] = useState(false);
   const [reasonsError, setReasonsError] = useState<string | null>(null);
   const [note, setNote] = useState("");
@@ -107,17 +100,21 @@ export default function CancelOrderModal({
   const [error, setError] = useState<string | null>(null);
   const [workflowWarning, setWorkflowWarning] = useState<string | null>(null);
   const [result, setResult] = useState<CreateCancellationResult | null>(null);
+  const selectedReason = reasons.find((item) => item.id === reasonId);
 
   useEffect(() => {
     if (!isOpen) return;
 
     let active = true;
     const requestedInitialReason = initialReason.trim();
+    const requestedInitialSubReason = initialSubReason.trim();
     const fallbackBigCommerceReason =
       requestedInitialReason || "Customer requested cancellation";
 
     setType("Total");
     setReason(isBigCommerceCancellation ? fallbackBigCommerceReason : requestedInitialReason);
+    setReasonId("");
+    setSubReasonId("");
     setReasons([]);
     setReasonsLoading(true);
     setReasonsError(null);
@@ -137,22 +134,28 @@ export default function CancelOrderModal({
       return;
     }
 
-    void cancellationsService
-      .getReasons()
+    void cancellationReasonsService
+      .getActive()
       .then((values) => {
         if (!active) return;
 
-        const cleanReasons = uniqueReasons(values);
-        setReasons(cleanReasons);
+        const activeReasons = values.filter((value) => value.isActive);
+        setReasons(activeReasons);
 
         if (requestedInitialReason) {
           const normalizedInitial = normalizeReason(requestedInitialReason);
-          const matchingReason = cleanReasons.find(
-            (value) => normalizeReason(value) === normalizedInitial,
+          const matchingReason = activeReasons.find(
+            (value) => normalizeReason(value.reasonName) === normalizedInitial,
           );
-          setReason(matchingReason ?? requestedInitialReason);
+          setReason(matchingReason?.reasonName ?? "");
+          setReasonId(matchingReason?.id ?? "");
+          const matchingSubReason = matchingReason?.subReasons?.find(
+            (item) => normalizeReason(item.reasonName) === normalizeReason(requestedInitialSubReason),
+          );
+          setSubReasonId(matchingSubReason?.id ?? "");
         } else {
           setReason("");
+          setReasonId("");
         }
       })
       .catch(() => {
@@ -166,7 +169,7 @@ export default function CancelOrderModal({
     return () => {
       active = false;
     };
-  }, [isOpen, order, initialReason, initialNote, isBigCommerceCancellation, isNewClientRequestFlow]);
+  }, [isOpen, order, initialReason, initialSubReason, initialNote, isBigCommerceCancellation, isNewClientRequestFlow]);
 
   const toggleItem = (id: string) => {
     setSelected((previous) => ({
@@ -194,7 +197,13 @@ export default function CancelOrderModal({
     const cleanNote = note.trim();
 
     if (!cleanReason && !isBigCommerceCancellation) {
-      setError("Please provide a reason for the cancellation.");
+      setError("Please select a reason and sub-reason for the cancellation.");
+      return;
+    }
+
+    const selectedSubReason = selectedReason?.subReasons?.find((item) => item.id === subReasonId);
+    if (!isBigCommerceCancellation && (!reasonId || !selectedSubReason)) {
+      setError("Please select a valid reason and sub-reason.");
       return;
     }
 
@@ -237,6 +246,7 @@ export default function CancelOrderModal({
       const basePayload = {
         OrderID: order.order_number,
         reason: cleanReason || "Customer requested cancellation",
+        ...(!isBigCommerceCancellation ? { cancellationReasonId: reasonId, cancellationSubReasonId: subReasonId } : {}),
         ...((!isBigCommerceCancellation || isNewClientRequestFlow) && cleanNote ? { note: cleanNote } : {}),
       };
 
@@ -413,26 +423,21 @@ export default function CancelOrderModal({
               <Label>Reason</Label>
               <div className="relative">
                 <select
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  disabled={reasonsLoading && !reason}
+                  value={reasonId}
+                  onChange={(event) => {
+                    const selected = reasons.find((item) => item.id === event.target.value);
+                    setReasonId(selected?.id ?? "");
+                    setReason(selected?.reasonName ?? "");
+                    setSubReasonId("");
+                  }}
+                  disabled={reasonsLoading}
                   className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 pr-11 text-sm text-gray-800 shadow-theme-xs focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800"
                 >
                   <option value="" disabled>
                     {reasonsLoading ? "Loading reasons..." : "Select a reason"}
                   </option>
-                  {reason &&
-                    !reasons.some(
-                      (value) => normalizeReason(value) === normalizeReason(reason),
-                    ) && (
-                      <option value={reason}>
-                        {reason}
-                      </option>
-                    )}
-                  {reasons.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
+                  {reasons.map((item) => (
+                    <option key={item.id} value={item.id}>{item.reasonName}</option>
                   ))}
                 </select>
                 <svg
@@ -463,6 +468,30 @@ export default function CancelOrderModal({
                 </p>
               )}
             </div>
+            )}
+
+            {!isBigCommerceCancellation && (
+              <div>
+                <Label>Sub-reason</Label>
+                <div className="relative">
+                  <select
+                    value={subReasonId}
+                    onChange={(event) => {
+                      const selected = selectedReason?.subReasons?.find((item) => item.id === event.target.value);
+                      setSubReasonId(selected?.id ?? "");
+                    }}
+                    disabled={!reasonId || reasonsLoading}
+                    className="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"
+                  >
+                    <option value="" disabled>
+                      {!reasonId ? "Select a reason first" : "Select a sub-reason"}
+                    </option>
+                    {(selectedReason?.subReasons ?? []).filter((item) => item.isActive).map((item) => (
+                      <option key={item.id} value={item.id}>{item.reasonName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             )}
 
             <div>

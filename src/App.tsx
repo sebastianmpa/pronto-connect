@@ -14,6 +14,8 @@ import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
 import EmailLogsList from "./pages/EmailLogs/EmailLogsList";
 import EmailLogDetail from "./pages/EmailLogs/EmailLogDetail";
 import CancellationsList from "./pages/Cancellations/CancellationsList";
+import CancellationReasonsList from "./pages/CancellationReasons/CancellationReasonsList";
+import AvailabilityMessagesList from "./pages/AvailabilityMessages/AvailabilityMessagesList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
 import ClosureMethodsList from "./pages/ClosureMethods/ClosureMethodsList";
 import ContactReasonsList from "./pages/ContactReasons/ContactReasonsList";
@@ -157,6 +159,8 @@ export default function App() {
             <Route path="/email-logs" element={<EmailLogsList />} />
             <Route path="/email-logs/:id" element={<EmailLogDetail />} />
             <Route path="/cancellations" element={<CancellationsList />} />
+            <Route path="/cancellation-reasons" element={<CancellationReasonsList />} />
+            <Route path="/availability-messages" element={<AvailabilityMessagesList />} />
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
             <Route path="/closure-methods" element={<ClosureMethodsList />} />
             <Route path="/contact-reasons" element={<ContactReasonsList />} />

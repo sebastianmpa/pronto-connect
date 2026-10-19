@@ -9,10 +9,12 @@ import type {
   SaveCustomerContactRequestResponse,
 } from "./types";
 
-const REASON_OPTIONS_PAGE_SIZE = 100;
-
 let onHoldReasonOptionsCache: string[] | null = null;
 let onHoldReasonOptionsRequest: Promise<string[]> | null = null;
+const customerContactsRequests = new Map<
+  string,
+  Promise<CustomerContactsResponse>
+>();
 
 function buildQueryParams(params: CustomerContactsParams) {
   return {
@@ -26,48 +28,28 @@ function buildQueryParams(params: CustomerContactsParams) {
   };
 }
 
-async function fetchCustomerContacts(
+function fetchCustomerContacts(
   params: CustomerContactsParams
 ): Promise<CustomerContactsResponse> {
-  const { data } = await apiClient.get<CustomerContactsResponse>(
-    "/contact-requests/atc/v0",
-    { params: buildQueryParams(params) }
-  );
+  const queryParams = buildQueryParams(params);
+  const requestKey = JSON.stringify(queryParams);
+  const existingRequest = customerContactsRequests.get(requestKey);
 
-  return data;
-}
+  if (existingRequest) return existingRequest;
 
-async function fetchAllOnHoldReasonOptions(): Promise<string[]> {
-  const reasons = new Set<string>();
-  let offset = 0;
-
-  while (true) {
-    const response = await fetchCustomerContacts({
-      limit: REASON_OPTIONS_PAGE_SIZE,
-      offset,
+  const request = apiClient
+    .get<CustomerContactsResponse>("/contact-requests/atc/v0", {
+      params: queryParams,
+    })
+    .then(({ data }) => data)
+    .finally(() => {
+      customerContactsRequests.delete(requestKey);
     });
 
-    const items = Array.isArray(response.items) ? response.items : [];
-
-    items.forEach((item) => {
-      const reason = item.onhold_reason?.trim();
-      if (reason) reasons.add(reason);
-    });
-
-    if (items.length === 0) break;
-
-    offset += items.length;
-
-    const total = Number(response.meta?.total);
-    if (Number.isFinite(total) && offset >= total) break;
-
-    if (!Number.isFinite(total) && items.length < REASON_OPTIONS_PAGE_SIZE) {
-      break;
-    }
-  }
-
-  return Array.from(reasons).sort((left, right) => left.localeCompare(right));
+  customerContactsRequests.set(requestKey, request);
+  return request;
 }
+
 
 const customerContactsService = {
   /** GET /contact-requests/atc/v0 */
@@ -75,15 +57,16 @@ const customerContactsService = {
     params: CustomerContactsParams
   ): Promise<CustomerContactsResponse> => fetchCustomerContacts(params),
 
-  /** Temporary source for the Reason filter until a catalog endpoint exists. */
+  /** GET /contact-requests/atc/v0/reasons */
   getOnHoldReasonOptions: async (): Promise<string[]> => {
     if (onHoldReasonOptionsCache) return onHoldReasonOptionsCache;
 
     if (!onHoldReasonOptionsRequest) {
-      onHoldReasonOptionsRequest = fetchAllOnHoldReasonOptions()
-        .then((options) => {
-          onHoldReasonOptionsCache = options;
-          return options;
+      onHoldReasonOptionsRequest = apiClient
+        .get<{ items: string[] }>("/contact-requests/atc/v0/reasons")
+        .then(({ data }) => {
+          onHoldReasonOptionsCache = Array.isArray(data.items) ? data.items : [];
+          return onHoldReasonOptionsCache;
         })
         .finally(() => {
           onHoldReasonOptionsRequest = null;

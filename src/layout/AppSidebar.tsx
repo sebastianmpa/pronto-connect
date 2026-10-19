@@ -238,6 +238,16 @@ const othersItems: NavItem[] = [
     path: "/contact-reasons",
   },
   {
+    icon: <CloseLineIcon />,
+    name: "Cancellation Reasons",
+    path: "/cancellation-reasons",
+  },
+  {
+    icon: <TableIcon />,
+    name: "Availability Messages",
+    path: "/availability-messages",
+  },
+  {
     icon: <TableIcon />,
     name: "Status Dictionary",
     path: "/status-dictionary",
