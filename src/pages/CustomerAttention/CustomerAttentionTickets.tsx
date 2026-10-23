@@ -4,6 +4,7 @@ import Chart from "react-apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import { customerAttentionService } from "../../lib/customer-attention/service";
 import type { TicketStatsResponse } from "../../lib/customer-attention/types";
 import ticketsService from "../../lib/tickets/ticketsService";
@@ -112,7 +113,7 @@ export default function CustomerAttentionTickets() {
     <div className="hidden sm:block"><PageBreadcrumb pageTitle="Estadísticas de tickets" /></div>
     <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Estadísticas de tickets</h1>
     <div className="space-y-6">
-      <ComponentCard title="Filtros" desc="El reporte abre con el total general. El agente corresponde a quien envió la primera respuesta pública.">
+      <CollapsibleFilters description="El reporte abre con el total general. El agente corresponde a quien envió la primera respuesta pública.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="text-sm text-gray-700 dark:text-gray-300">Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" /></label>
           <label className="text-sm text-gray-700 dark:text-gray-300">Hasta<input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90" /></label>
@@ -121,7 +122,7 @@ export default function CustomerAttentionTickets() {
           <div className="flex items-end"><button type="submit" disabled={loading} className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{loading ? "Cargando…" : "Aplicar filtros"}</button></div>
           {validation && <p role="alert" className="sm:col-span-2 text-sm text-red-600">{validation}</p>}{departmentsError && <p className="sm:col-span-2 text-sm text-amber-600">No se pudo cargar el catálogo de departamentos; puedes consultar el total general.</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Cargando estadísticas de tickets…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{error}</p>}
       {!loading && data && <>

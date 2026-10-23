@@ -4,6 +4,7 @@ import Chart from "react-apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import { customerAttentionService } from "../../lib/customer-attention/service";
 import type { AgentCandidatesResponse, ChatStatsResponse } from "../../lib/customer-attention/types";
 
@@ -107,7 +108,7 @@ export default function CustomerAttentionChats() {
     <PageMeta title="Estadísticas de chats | Pronto Connect" description="Recorrido de chats de SalesIQ entre bot y operadores" />
     <PageBreadcrumb pageTitle="Estadísticas de chats" />
     <div className="space-y-6">
-      <ComponentCard title="Filtros" desc="El rango usa días de Nueva York. Agente o bot asociado filtra chats donde participó esa identidad; un chat transferido por un bot también puede quedar asociado al agente que lo aceptó.">
+      <CollapsibleFilters description="El rango usa días de Nueva York. Agente o bot asociado filtra chats donde participó esa identidad; un chat transferido por un bot también puede quedar asociado al agente que lo aceptó.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <label className="text-sm text-gray-700 dark:text-gray-300">Desde<input aria-label="Desde" type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-900" /></label>
           <label className="text-sm text-gray-700 dark:text-gray-300">Hasta<input aria-label="Hasta" type="date" value={to} onChange={(event) => setTo(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-900" /></label>
@@ -116,7 +117,7 @@ export default function CustomerAttentionChats() {
           <div className="flex items-end"><button type="submit" disabled={loading} className="h-9 rounded-lg bg-brand-500 px-5 text-sm font-medium text-white disabled:opacity-50">{loading ? "Cargando…" : "Aplicar filtros"}</button></div>
           {validation && <p role="alert" className="text-sm text-red-600 sm:col-span-2 xl:col-span-4">{validation}</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Cargando estadísticas de chats…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{error}</p>}
       {!loading && data && <>

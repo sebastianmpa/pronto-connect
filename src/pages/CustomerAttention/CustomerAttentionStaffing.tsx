@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ApexOptions } from "apexcharts";
 import Chart from "react-apexcharts";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
@@ -100,7 +101,7 @@ export default function CustomerAttentionStaffing() {
     <div className="hidden sm:block"><PageBreadcrumb pageTitle="Dotación sugerida" /></div>
     <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Dotación sugerida</h1>
     <div className="space-y-6">
-      <ComponentCard title="Filtros de planificación" desc="La demanda se compara por día de semana y franja de 30 minutos, en hora de Florida.">
+      <CollapsibleFilters title="Filtros de planificación" description="La demanda se compara por día de semana y franja de 30 minutos, en hora de Florida.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">Fecha a planificar<input type="date" className={inputClass} value={planningDate} onChange={(event) => setPlanningDate(event.target.value)} /></label>
           <label className="text-sm">Histórico desde<input type="date" className={inputClass} value={historyFrom} onChange={(event) => setHistoryFrom(event.target.value)} /></label>
@@ -108,7 +109,7 @@ export default function CustomerAttentionStaffing() {
           <div className="flex items-end"><button className="h-10 rounded-lg bg-brand-500 px-5 text-sm font-medium text-white" disabled={loading}>Aplicar</button></div>
           {validation && <p role="alert" className="text-sm text-red-600 sm:col-span-2 xl:col-span-4">{validation}</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Calculando demanda y cobertura…</p>}
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {!loading && result && <>

@@ -4,6 +4,7 @@ import Chart from "react-apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import { CalendarAltIcon } from "../../icons";
 import { customerAttentionService } from "../../lib/customer-attention/service";
 import type { CallReasonStatsResponse } from "../../lib/customer-attention/types";
@@ -89,7 +90,7 @@ export default function CustomerAttentionCallReasons() {
     <div className="hidden sm:block"><PageBreadcrumb pageTitle="Motivos de llamadas" /></div>
     <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Motivos de llamadas</h1>
     <div className="space-y-6">
-      <ComponentCard title="Filtros" desc="Fuente: tabla de calificaciones `answered_calls` en PostgreSQL. Cada fila cuenta como una calificación; las llamadas se cuentan por call_id único.">
+      <CollapsibleFilters description="Fuente: tabla de calificaciones `answered_calls` en PostgreSQL. Cada fila cuenta como una calificación; las llamadas se cuentan por call_id único.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           <label className="text-sm text-gray-700 dark:text-gray-300">Desde<div className="mt-1"><DateInput label="Desde" value={from} onChange={setFrom} /></div></label>
           <label className="text-sm text-gray-700 dark:text-gray-300">Hasta<div className="mt-1"><DateInput label="Hasta" value={to} onChange={setTo} /></div></label>
@@ -98,7 +99,7 @@ export default function CustomerAttentionCallReasons() {
           <div className="flex items-end"><button type="submit" disabled={loading} className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-medium text-white disabled:opacity-50">{loading ? "Cargando…" : "Aplicar filtros"}</button></div>
           {validation && <p role="alert" className="text-sm text-red-600">{validation}</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Cargando estadísticas de llamadas…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{error}</p>}
       {!loading && data && <>

@@ -5,6 +5,7 @@ import Chart from "react-apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import { CalendarAltIcon } from "../../icons";
 import { cancellationStatisticsService } from "../../lib/cancellation-statistics/service";
 import type { CancellationStatisticsResponse } from "../../lib/cancellation-statistics/types";
@@ -194,7 +195,7 @@ export default function CancellationStatistics() {
     <div className="hidden sm:block"><PageBreadcrumb pageTitle="Orden vs cancelación" /></div>
     <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Orden vs cancelación</h1>
     <div className="space-y-6">
-      <ComponentCard title="Filtros" desc="El servidor aplica estos filtros al consultar y preparar cada sección. Las fechas filtran por día de cancelación e incluyen ambos extremos; vendedor y antigüedad se consolidan entre tiendas.">
+      <CollapsibleFilters description="El servidor aplica estos filtros al consultar y preparar cada sección. Las fechas filtran por día de cancelación e incluyen ambos extremos; vendedor y antigüedad se consolidan entre tiendas.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <label className="text-sm text-gray-700 dark:text-gray-300">Rango de cancelación<div className="mt-1"><DateRangeInput from={from} to={to} onChange={(nextFrom, nextTo) => { setFrom(nextFrom); setTo(nextTo); }} /></div></label>
           <label className="text-sm text-gray-700 dark:text-gray-300">Tienda<select value={storeFilter} onChange={(event) => setStoreFilter(event.target.value)} className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90"><option value="">Todas las tiendas</option>{storeOptions.map((store) => <option key={store} value={store}>{store}</option>)}</select></label>
@@ -205,7 +206,7 @@ export default function CancellationStatistics() {
           <button type="submit" disabled={loading} className="h-10 self-end rounded-lg bg-brand-500 px-5 text-sm font-medium text-white disabled:opacity-50">{loading ? "Cargando…" : "Aplicar filtros"}</button>
           {validation && <p role="alert" className="text-sm text-red-600 sm:col-span-2 xl:col-span-3">{validation}</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Cargando estadísticas de cancelaciones…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{error}</p>}
       {!loading && data && <>

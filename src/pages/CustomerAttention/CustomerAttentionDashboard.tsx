@@ -5,6 +5,7 @@
   import PageMeta from "../../components/common/PageMeta";
   import PageBreadcrumb from "../../components/common/PageBreadCrumb";
   import ComponentCard from "../../components/common/ComponentCard";
+  import CollapsibleFilters from "../../components/common/CollapsibleFilters";
   import { CalendarAltIcon } from "../../icons";
   import { customerAttentionService } from "../../lib/customer-attention/service";
   import type {
@@ -480,7 +481,7 @@
         <div className="hidden sm:block"><PageBreadcrumb pageTitle="Métricas de atención" /></div>
         <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Métricas de atención</h1>
         <div className="space-y-6">
-          <ComponentCard title="Filtros" desc="Los días se calculan en la zona horaria de Nueva York.">
+          <CollapsibleFilters description="Los días se calculan en la zona horaria de Nueva York.">
             <form onSubmit={applyFilters} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-12">
                 <label className="text-sm text-gray-700 dark:text-gray-300 xl:col-span-2">Desde
@@ -542,7 +543,7 @@
                 </button>
               </div>
             </form>
-          </ComponentCard>
+          </CollapsibleFilters>
 
           {loading && <p role="status" className="text-sm text-gray-500">Cargando métricas de atención…</p>}
           {!loading && Object.keys(errors).length > 0 && (

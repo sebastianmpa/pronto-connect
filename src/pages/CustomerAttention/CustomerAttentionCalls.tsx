@@ -4,6 +4,7 @@ import Chart from "react-apexcharts";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
+import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import CallDetailsModal from "./CallDetailsModal";
 import QualifiedCallDetailsModal from "./QualifiedCallDetailsModal";
 import { customerAttentionService } from "../../lib/customer-attention/service";
@@ -123,7 +124,7 @@ export default function CustomerAttentionCalls() {
     <PageMeta title="Detalle de llamadas | Pronto Connect" description="Consultas y detalle de llamadas GoTo" />
     <PageBreadcrumb pageTitle="Detalle de llamadas" />
     <div className="space-y-6">
-      <ComponentCard title="Filtros" desc="El rango usa días de Nueva York. El agente aplica a las llamadas por cola; las calificadas no tienen filtro de agente.">
+      <CollapsibleFilters description="El rango usa días de Nueva York. El agente aplica a las llamadas por cola; las calificadas no tienen filtro de agente.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm text-gray-700 dark:text-gray-300">Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-900" /></label>
           <label className="text-sm text-gray-700 dark:text-gray-300">Hasta<input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-gray-300 px-3 dark:border-gray-700 dark:bg-gray-900" /></label>
@@ -132,7 +133,7 @@ export default function CustomerAttentionCalls() {
           {validation && <p role="alert" className="text-sm text-red-600 sm:col-span-2 xl:col-span-4">{validation}</p>}
           {agentsError && <p className="text-xs text-amber-700 sm:col-span-2 xl:col-span-4">No se pudo cargar la lista de agentes GoTo; puedes consultar todas las colas.</p>}
         </form>
-      </ComponentCard>
+      </CollapsibleFilters>
       {loading && <p role="status" className="text-sm text-gray-500">Cargando llamadas…</p>}
       {error && <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">{error}</p>}
 
