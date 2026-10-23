@@ -102,6 +102,8 @@ export default function CancelOrderModal({
   const [result, setResult] = useState<CreateCancellationResult | null>(null);
   const selectedReason = reasons.find((item) => item.id === reasonId);
 
+  // The order detail can refresh after submission. Keep that refresh from
+  // resetting the success result and reopening the confirmation form.
   useEffect(() => {
     if (!isOpen) return;
 
@@ -169,7 +171,9 @@ export default function CancelOrderModal({
     return () => {
       active = false;
     };
-  }, [isOpen, order, initialReason, initialSubReason, initialNote, isBigCommerceCancellation, isNewClientRequestFlow]);
+    // Reinitialize when opened for an order or when its identity/initial values change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, order.order_number, initialReason, initialSubReason, initialNote, isBigCommerceCancellation, isNewClientRequestFlow]);
 
   const toggleItem = (id: string) => {
     setSelected((previous) => ({

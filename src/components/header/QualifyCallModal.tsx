@@ -33,6 +33,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
   const [contactReason, setContactReason] = useState("");
   const [closureMethod, setClosureMethod] = useState("");
   const [note, setNote] = useState("");
+  const [persuasion, setPersuasion] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
     setContactReason("");
     setClosureMethod("");
     setNote("");
+    setPersuasion(false);
     setError(null);
     setSuccess(false);
     Promise.all([contactReasonsService.getAll(), closureMethodsService.getAll()])
@@ -77,6 +79,7 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
         contactReason,
         closureMethod,
         note: note.trim(),
+        persuasion,
         origin: "goto",
       });
       setSuccess(true);
@@ -175,6 +178,16 @@ export default function QualifyCallModal({ isOpen, onClose, call }: QualifyCallM
                 className="w-full rounded-lg border border-gray-300 bg-transparent px-4 py-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30"
               />
             </div>
+
+            <label className="flex items-center gap-3 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={persuasion}
+                onChange={(event) => setPersuasion(event.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+              />
+              Persuasion
+            </label>
 
             {error && (
               <div className="rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">

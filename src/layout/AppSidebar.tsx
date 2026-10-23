@@ -105,10 +105,12 @@ const navItems: NavItem[] = [
     name: "Estadísticas",
     subItems: [
       { name: "Resumen de atención", path: "/customer-attention/metrics" },
+      { name: "Dotación sugerida", path: "/customer-attention/staffing" },
       { name: "Detalle de llamadas", path: "/customer-attention/calls" },
       { name: "Estadísticas de tickets", path: "/customer-attention/tickets" },
       { name: "Motivos de llamadas", path: "/customer-attention/call-reasons" },
       { name: "Estadísticas de chats", path: "/customer-attention/chats" },
+      { name: "Orden vs cancelación", path: "/cancellations/statistics" },
     ],
   },
 ];
@@ -227,6 +229,11 @@ const _disabledNavItems: NavItem[] = [
 ── */
 
 const othersItems: NavItem[] = [
+  {
+    icon: <MultiUserIcon />,
+    name: "Equipo y horarios",
+    path: "/customer-attention/staff",
+  },
   {
     icon: <CheckCircleIcon />,
     name: "Closure Methods",

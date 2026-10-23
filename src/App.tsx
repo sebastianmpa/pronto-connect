@@ -14,6 +14,7 @@ import EmailTemplatesList from "./pages/EmailTemplates/EmailTemplatesList";
 import EmailLogsList from "./pages/EmailLogs/EmailLogsList";
 import EmailLogDetail from "./pages/EmailLogs/EmailLogDetail";
 import CancellationsList from "./pages/Cancellations/CancellationsList";
+import CancellationStatistics from "./pages/Cancellations/CancellationStatistics";
 import CancellationReasonsList from "./pages/CancellationReasons/CancellationReasonsList";
 import AvailabilityMessagesList from "./pages/AvailabilityMessages/AvailabilityMessagesList";
 import CancellationDetail from "./pages/Cancellations/CancellationDetail";
@@ -37,6 +38,8 @@ import Crm from "./pages/Dashboard/Crm";
 import Marketing from "./pages/Dashboard/Marketing";
 import Analytics from "./pages/Dashboard/Analytics";
 import CustomerAttentionDashboard from "./pages/CustomerAttention/CustomerAttentionDashboard";
+import CustomerAttentionStaffing from "./pages/CustomerAttention/CustomerAttentionStaffing";
+import CustomerAttentionStaff from "./pages/CustomerAttention/CustomerAttentionStaff";
 import CustomerAttentionCalls from "./pages/CustomerAttention/CustomerAttentionCalls";
 import CustomerAttentionTickets from "./pages/CustomerAttention/CustomerAttentionTickets";
 import CustomerAttentionCallReasons from "./pages/CustomerAttention/CustomerAttentionCallReasons";
@@ -159,6 +162,7 @@ export default function App() {
             <Route path="/email-logs" element={<EmailLogsList />} />
             <Route path="/email-logs/:id" element={<EmailLogDetail />} />
             <Route path="/cancellations" element={<CancellationsList />} />
+            <Route path="/cancellations/statistics" element={<CancellationStatistics />} />
             <Route path="/cancellation-reasons" element={<CancellationReasonsList />} />
             <Route path="/availability-messages" element={<AvailabilityMessagesList />} />
             <Route path="/cancellations/:salesOrderId" element={<CancellationDetail />} />
@@ -174,6 +178,8 @@ export default function App() {
             <Route path="/client-requests" element={<ClientRequestsList />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/customer-attention/metrics" element={<CustomerAttentionDashboard />} />
+            <Route path="/customer-attention/staffing" element={<CustomerAttentionStaffing />} />
+            <Route path="/customer-attention/staff" element={<CustomerAttentionStaff />} />
             <Route path="/customer-attention/calls" element={<CustomerAttentionCalls />} />
             <Route path="/customer-attention/tickets" element={<CustomerAttentionTickets />} />
             <Route path="/customer-attention/call-reasons" element={<CustomerAttentionCallReasons />} />

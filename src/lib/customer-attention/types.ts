@@ -49,9 +49,19 @@ export interface VolumePoint {
   total: number;
 }
 
+export interface VolumeWeekdayHour {
+  weekday: number;
+  hour: number;
+  total: number;
+  by_channel: Partial<Record<Channel, number>>;
+}
+
 export interface VolumeResponse {
   current: VolumePoint[];
   comparison: VolumePoint[] | null;
+  current_by_weekday_hour: VolumeWeekdayHour[];
+  comparison_by_weekday_hour: VolumeWeekdayHour[] | null;
+  staffing?: StaffingAnalysis;
 }
 
 export interface OutcomeReason {
@@ -296,4 +306,42 @@ export interface QualifiedCallDetailsResponse {
   } | null;
   queue_interactions: QualifiedCallQueueInteraction[];
   qualifications: QualifiedCallQualification[];
+}
+
+export interface StaffSchedule {
+  id: number;
+  staff_id: number;
+  effective_from: string | null;
+  weekdays: number[];
+  start_time: string | null;
+  end_time: string | null;
+  break_start: string | null;
+  break_end: string | null;
+  status: "draft" | "published";
+}
+export interface StaffMember {
+  id: number;
+  name: string;
+  team: "call" | "chat_ticket";
+  goto_agent_id: string | null;
+  active: boolean;
+  schedules: StaffSchedule[];
+}
+export interface StaffResponse {
+  staff: StaffMember[];
+  capacities: Record<"call" | "chat" | "ticket", number | null>;
+}
+export interface StaffingSlotTeam {
+  suggested: number | null;
+  scheduled: number | null;
+  gap: number | null;
+}
+export interface StaffingAnalysis {
+  planning_date: string;
+  history_from: string;
+  history_to: string;
+  timezone: string;
+  capacities: StaffResponse["capacities"];
+  slots: { time: string; sample_days: number; demand_p75: { call: number | null; chat: number | null; ticket: number | null }; calls: StaffingSlotTeam; chat_ticket: StaffingSlotTeam }[];
+  weekly?: { weekday: number; date: string; slots: StaffingAnalysis["slots"] }[];
 }

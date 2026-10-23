@@ -9,6 +9,7 @@ export interface CreateAnsweredCallPayload {
   contactReason: string;
   closureMethod: string;
   note: string;
+  persuasion?: boolean;
   origin: "goto" | "zoho";
 }
 
@@ -40,6 +41,7 @@ export interface AnsweredCallItem {
   contactReason: string;
   closureMethod: string;
   note?: string | null;
+  persuasion?: boolean;
   origin: "goto" | "zoho";
   createdAt: string;
   updatedAt: string;

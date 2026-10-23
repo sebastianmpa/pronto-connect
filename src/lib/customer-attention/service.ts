@@ -15,6 +15,9 @@ import type {
   OutcomesResponse,
   VolumeResponse,
   TicketStatsResponse,
+  StaffResponse,
+  StaffMember,
+  StaffSchedule,
 } from "./types";
 
 const BASE_PATH = "/customer-attention/atc/v0";
@@ -50,7 +53,7 @@ export const customerAttentionService = {
     });
     return data;
   },
-  async volume(query: AnalyticsQuery, channels: Channel[], signal: AbortSignal) {
+  async volume(query: AnalyticsQuery & { staffing?: boolean; planning_date?: string; history_from?: string; history_to?: string }, channels: Channel[], signal: AbortSignal) {
     const { data } = await apiClient.get<VolumeResponse>(`${BASE_PATH}/volume`, {
       params: { ...query, channels: channels.join(",") },
       signal,
@@ -108,6 +111,37 @@ export const customerAttentionService = {
       `${BASE_PATH}/agent-mappings/candidates`,
       { signal },
     );
+    return data;
+  },
+  async staffAccess(signal: AbortSignal) {
+    const { data } = await apiClient.get<{ can_edit: boolean }>(`${BASE_PATH}/staff/access`, { signal });
+    return data;
+  },
+  async staff(signal: AbortSignal) {
+    const { data } = await apiClient.get<StaffResponse>(`${BASE_PATH}/staff`, { signal });
+    return data;
+  },
+  async createStaff(payload: { name: string; team: StaffMember["team"]; goto_agent_id: string | null }) {
+    const { data } = await apiClient.post<StaffMember>(`${BASE_PATH}/staff`, payload);
+    return data;
+  },
+  async updateStaff(id: number, payload: Partial<Pick<StaffMember, "name" | "team" | "goto_agent_id" | "active">>) {
+    const { data } = await apiClient.put<StaffMember>(`${BASE_PATH}/staff/${id}`, payload);
+    return data;
+  },
+  async deactivateStaff(id: number) {
+    await apiClient.delete(`${BASE_PATH}/staff/${id}`);
+  },
+  async addSchedule(id: number, payload: Omit<StaffSchedule, "id" | "staff_id">) {
+    const { data } = await apiClient.post<StaffSchedule>(`${BASE_PATH}/staff/${id}/schedules`, payload);
+    return data;
+  },
+  async updateDraftSchedule(id: number, scheduleId: number, payload: Omit<StaffSchedule, "id" | "staff_id">) {
+    const { data } = await apiClient.put<StaffSchedule>(`${BASE_PATH}/staff/${id}/schedules/${scheduleId}`, payload);
+    return data;
+  },
+  async saveCapacities(payload: StaffResponse["capacities"]) {
+    const { data } = await apiClient.put<StaffResponse["capacities"]>(`${BASE_PATH}/staff/capacities`, payload);
     return data;
   },
   async mappings(signal: AbortSignal) {

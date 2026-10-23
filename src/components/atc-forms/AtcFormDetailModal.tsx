@@ -181,10 +181,13 @@ export default function AtcFormDetailModal({
   useEffect(() => {
     if (!isOpen || !requestId) return;
 
-    setStatus(requestStatus ?? "pending");
     setError(null);
     setCancellationOrder(null);
     setCancellationWasSubmitted(false);
+  }, [isOpen, requestId]);
+
+  useEffect(() => {
+    if (isOpen && requestId) setStatus(requestStatus ?? "pending");
   }, [isOpen, requestId, requestStatus]);
 
   useEffect(() => {

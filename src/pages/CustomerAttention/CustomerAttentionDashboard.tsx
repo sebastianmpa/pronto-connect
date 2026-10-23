@@ -17,6 +17,7 @@
     OccupancyResponse,
     OutcomesResponse,
     VolumeResponse,
+    VolumeWeekdayHour,
   } from "../../lib/customer-attention/types";
 
   const CHANNELS: { id: Channel; label: string }[] = [
@@ -33,6 +34,7 @@
   };
   const numberFormat = new Intl.NumberFormat("es-CO");
   const percentFormat = new Intl.NumberFormat("es-CO", { maximumFractionDigits: 1 });
+  const WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
   type Section = "metrics" | "volume" | "outcomes" | "occupancy";
   type DashboardData = {
@@ -142,6 +144,46 @@
     if (previous === 0) return "Comparativo: 0";
     const delta = ((current - previous) / previous) * 100;
     return `${delta > 0 ? "+" : ""}${percentFormat.format(delta)} % vs. comparativo`;
+  }
+
+  function volumeHeatmapSeries(points: VolumeWeekdayHour[]) {
+    return WEEKDAY_NAMES.map((name, weekdayIndex) => ({
+      name,
+      data: Array.from({ length: 24 }, (_, hour) => ({
+        x: `${String(hour).padStart(2, "0")}:00`,
+        y: points.find((point) => point.weekday === weekdayIndex + 1 && point.hour === hour)?.total ?? 0,
+      })),
+    }));
+  }
+
+  function volumeHeatmapOptions(points: VolumeWeekdayHour[], selectedChannels: Channel[]): ApexOptions {
+    return {
+      chart: {
+        type: "heatmap",
+        toolbar: { show: false },
+        fontFamily: "Outfit, sans-serif",
+        animations: { enabled: false },
+      },
+      dataLabels: { enabled: false },
+      plotOptions: { heatmap: { shadeIntensity: 0.55, radius: 3, useFillColorAsStroke: false } },
+      xaxis: { type: "category", labels: { rotate: -45 } },
+      yaxis: { labels: { maxWidth: 88 } },
+      legend: { show: false },
+      tooltip: {
+        shared: false,
+        intersect: true,
+        custom: ({ seriesIndex, dataPointIndex }) => {
+          const weekday = seriesIndex + 1;
+          const hour = dataPointIndex;
+          const point = points.find((item) => item.weekday === weekday && item.hour === hour);
+          const channelLines = CHANNELS
+            .filter((channel) => selectedChannels.includes(channel.id))
+            .map((channel) => `<div>${channel.label}: ${numberFormat.format(point?.by_channel[channel.id] ?? 0)}</div>`)
+            .join("");
+          return `<div style="pointer-events:none;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:12px;box-shadow:0 8px 16px rgba(0,0,0,.12)"><strong>${WEEKDAY_NAMES[seriesIndex]} · ${String(hour).padStart(2, "0")}:00</strong><div style="margin-top:4px">Total: ${numberFormat.format(point?.total ?? 0)}</div>${channelLines}</div>`;
+        },
+      },
+    };
   }
 
   function selectedAgentId(value: string) {
@@ -356,6 +398,21 @@
       name: channel.label,
       data: dates.map((date) => data.volume?.current.find((row) => row.date === date && row.channel === channel.id)?.total ?? 0),
     }));
+    const currentHeatmapPoints = data.volume?.current_by_weekday_hour ?? [];
+    const comparisonHeatmapPoints = data.volume?.comparison_by_weekday_hour ?? null;
+    const currentHeatmapSeries = useMemo(() => volumeHeatmapSeries(currentHeatmapPoints), [currentHeatmapPoints]);
+    const currentHeatmapOptions = useMemo(
+      () => volumeHeatmapOptions(currentHeatmapPoints, applied.channels),
+      [currentHeatmapPoints, applied.channels],
+    );
+    const comparisonHeatmapSeries = useMemo(
+      () => comparisonHeatmapPoints ? volumeHeatmapSeries(comparisonHeatmapPoints) : [],
+      [comparisonHeatmapPoints],
+    );
+    const comparisonHeatmapOptions = useMemo(
+      () => comparisonHeatmapPoints ? volumeHeatmapOptions(comparisonHeatmapPoints, applied.channels) : undefined,
+      [comparisonHeatmapPoints, applied.channels],
+    );
     const channelChartOptions: ApexOptions = {
       chart: { type: "bar", toolbar: { show: false }, fontFamily: "Outfit, sans-serif" },
       colors: channelTotals.map((channel) => CHANNEL_COLORS[channel.id]),
@@ -519,6 +576,27 @@
                     <p className="col-span-full text-xs text-gray-500">Actual / comparativo</p>
                   </div>
                 )}
+              </ComponentCard>
+
+              <ComponentCard title="Volumen por día y hora" desc="Cada celda muestra los contactos de esa hora y día de semana en la zona horaria de Nueva York.">
+                {errors.volume ? <p role="alert" className="text-sm text-red-600">{errors.volume}</p> : volumeTotals.current ? (
+                  <div className={`grid gap-6 ${comparisonHeatmapPoints ? "xl:grid-cols-2" : ""}`}>
+                    <div>
+                      <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Período actual · {applied.from} a {applied.to}</h3>
+                      <div className="overflow-x-auto" aria-label="Heatmap de volumen actual por día y hora">
+                        <div className="min-w-[900px]"><Chart options={currentHeatmapOptions} series={currentHeatmapSeries} type="heatmap" height={340} /></div>
+                      </div>
+                    </div>
+                    {comparisonHeatmapPoints && (
+                      <div>
+                        <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Período comparativo · {applied.compareFrom} a {applied.compareTo}</h3>
+                        <div className="overflow-x-auto" aria-label="Heatmap de volumen comparativo por día y hora">
+                          <div className="min-w-[900px]"><Chart options={comparisonHeatmapOptions!} series={comparisonHeatmapSeries} type="heatmap" height={340} /></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : <Empty text="No hay contactos en este período." />}
               </ComponentCard>
 
               <ComponentCard title="Volumen total por canal" desc="El porcentaje de cada barra se calcula sobre el total de los canales seleccionados.">
