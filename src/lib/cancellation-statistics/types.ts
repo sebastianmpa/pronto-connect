@@ -71,6 +71,12 @@ export interface CancellationStatisticsResponse {
     high_impact_stores: number;
     cancellations_over_30_days: number;
     inconsistent_dates: number;
+    total_cancellations: number;
+  };
+  alert_thresholds: {
+    high_rate_percent: number;
+    high_impact_usd: number;
+    late_cancellation_days: number;
   };
   stores: CancellationStoreStats[];
   reasons: CancellationReasonStats[];
@@ -86,3 +92,5 @@ export interface CancellationStatisticsResponse {
     };
   };
 }
+
+export type CancellationAlertThresholds = CancellationStatisticsResponse["alert_thresholds"];

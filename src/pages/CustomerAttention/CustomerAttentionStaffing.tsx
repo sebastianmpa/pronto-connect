@@ -5,6 +5,7 @@ import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import ComponentCard from "../../components/common/ComponentCard";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
+import Tooltip from "../../components/ui/tooltip/Tooltip";
 import { customerAttentionService } from "../../lib/customer-attention/service";
 import type { StaffingAnalysis, VolumeWeekdayHour } from "../../lib/customer-attention/types";
 
@@ -35,6 +36,20 @@ function initialHistory() {
 const defaultHistory = initialHistory();
 const inputClass = "mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-white";
 
+type Visualization = "chart" | "table";
+
+function VisualizationControls({ label, view, onChange, explanation }: { label: string; view: Visualization; onChange: (view: Visualization) => void; explanation: string }) {
+  return <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+    <Tooltip content={explanation} placement="top" variant="light">
+      <button type="button" aria-label={`Información: ${label}`} className="inline-flex size-7 items-center justify-center rounded-full border border-gray-300 text-xs font-semibold text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">i</button>
+    </Tooltip>
+    <div role="group" aria-label={`Vista de ${label}`} className="inline-flex rounded-lg border border-gray-200 p-1 dark:border-gray-700">
+      <button type="button" aria-pressed={view === "chart"} onClick={() => onChange("chart")} className={`rounded-md px-3 py-1.5 text-sm ${view === "chart" ? "bg-brand-500 text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`}>Gráfica</button>
+      <button type="button" aria-pressed={view === "table"} onClick={() => onChange("table")} className={`rounded-md px-3 py-1.5 text-sm ${view === "table" ? "bg-brand-500 text-white" : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`}>Tabla</button>
+    </div>
+  </div>;
+}
+
 export default function CustomerAttentionStaffing() {
   const [planningDate, setPlanningDate] = useState(floridaToday());
   const [historyFrom, setHistoryFrom] = useState(defaultHistory.from);
@@ -43,8 +58,11 @@ export default function CustomerAttentionStaffing() {
   const [result, setResult] = useState<StaffingAnalysis | null>(null);
   const [volume, setVolume] = useState<VolumeWeekdayHour[]>([]);
   const [volumeChannel, setVolumeChannel] = useState<"all" | "call" | "chat">("all");
+  const [volumeView, setVolumeView] = useState<Visualization>("chart");
   const [weeklyTeam, setWeeklyTeam] = useState<"calls" | "chat_ticket">("calls");
   const [weeklyMetric, setWeeklyMetric] = useState<"suggested" | "scheduled" | "gap">("gap");
+  const [weeklyView, setWeeklyView] = useState<Visualization>("chart");
+  const [detailView, setDetailView] = useState<Visualization>("chart");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [validation, setValidation] = useState("");
@@ -67,6 +85,33 @@ export default function CustomerAttentionStaffing() {
   const maximumVolume = Math.max(1, ...volumeValues.flat());
   const weeklyValues = useMemo(() => result?.weekly?.map((day) => day.slots.map((slot) => slot[weeklyTeam][weeklyMetric] ?? null)) ?? [], [result, weeklyTeam, weeklyMetric]);
   const maximumWeekly = Math.max(1, ...weeklyValues.flat().filter((value): value is number => value != null));
+  const volumeChartOptions = useMemo<ApexOptions>(() => ({
+    chart: { type: "line", toolbar: { show: false }, fontFamily: "Outfit, sans-serif", animations: { enabled: false } },
+    colors: ["#465FFF", "#8B5CF6", "#12B76A", "#F79009", "#EF4444", "#06AED4", "#667085"],
+    stroke: { curve: "smooth", width: 3 },
+    dataLabels: { enabled: false },
+    xaxis: { categories: hours, tickAmount: 12, title: { text: "Hora de Florida" } },
+    yaxis: { min: 0, forceNiceScale: true, title: { text: "Contactos en el histórico" } },
+    legend: { position: "bottom" },
+    tooltip: { shared: true, intersect: false, y: { formatter: (value) => `${numberFormat.format(value ?? 0)} contactos` } },
+    markers: { size: 0, hover: { size: 5 } },
+  }), []);
+  const volumeChartSeries = useMemo(() => weekdayNames.map((day, index) => ({ name: day, data: volumeValues[index] })), [volumeValues]);
+  const weeklyChartOptions = useMemo<ApexOptions>(() => ({
+    chart: { type: "line", toolbar: { show: false }, fontFamily: "Outfit, sans-serif", animations: { enabled: false } },
+    colors: ["#465FFF", "#8B5CF6", "#12B76A", "#F79009", "#EF4444", "#06AED4", "#667085"],
+    stroke: { curve: "smooth", width: 3 },
+    dataLabels: { enabled: false },
+    xaxis: { categories: halfHours, tickAmount: 16, title: { text: "Hora de Florida · bloques de 30 minutos" }, labels: { rotate: -45 } },
+    yaxis: { min: 0, forceNiceScale: true, title: { text: weeklyMetric === "gap" ? "Agentes faltantes" : "Agentes" } },
+    legend: { position: "bottom" },
+    tooltip: { shared: true, intersect: false, y: { formatter: (value) => value == null ? "Sin datos suficientes" : `${numberFormat.format(value)} agentes` } },
+    markers: { size: 0, hover: { size: 5 } },
+  }), [weeklyMetric]);
+  const weeklyChartSeries = useMemo(() => result?.weekly?.map((day, index) => ({
+    name: `${weekdayNames[index]} · ${day.date}`,
+    data: weeklyValues[index] ?? [],
+  })) ?? [], [result, weeklyValues]);
 
   const chartOptions = useMemo<ApexOptions>(() => ({
     chart: { type: "line", toolbar: { show: false }, fontFamily: "Outfit, sans-serif", animations: { enabled: false } },
@@ -114,35 +159,35 @@ export default function CustomerAttentionStaffing() {
       {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {!loading && result && <>
         <ComponentCard title="Volumen por día y hora" desc="Contactos registrados en todo el histórico seleccionado, agrupados por hora de Florida. Cada celda suma esos días; aquí los chats incluyen bots, mientras la dotación sugerida usa solo chats atendidos por personas.">
+          <VisualizationControls label="volumen por día y hora" view={volumeView} onChange={setVolumeView} explanation="Cada línea representa un día de la semana. El eje horizontal muestra la hora de Florida y cada punto suma los contactos de esa hora en todo el histórico elegido; es un total, no un promedio diario. La serie de chats incluye conversaciones atendidas por bots." />
           <label className="block max-w-xs text-sm">Canal<select className={inputClass} value={volumeChannel} onChange={(event) => setVolumeChannel(event.target.value as typeof volumeChannel)}><option value="all">Todos: llamadas y chats</option><option value="call">Llamadas</option><option value="chat">Chats</option></select></label>
           {maximumVolume === 1 && volumeValues.flat().every((value) => value === 0) && <p className="mt-3 text-sm text-gray-500">No hay contactos de este canal en el histórico elegido.</p>}
-          <div className="overflow-x-auto"><table className="mt-4 min-w-[1050px] border-separate border-spacing-1 text-center text-xs">
+          {volumeView === "chart" ? <div className="min-w-0 overflow-x-auto" aria-label="Volumen de contactos por hora y día de la semana"><Chart options={volumeChartOptions} series={volumeChartSeries} type="line" height={380} /></div> : <div className="overflow-x-auto"><table className="mt-4 min-w-[1050px] border-separate border-spacing-1 text-center text-xs">
             <thead><tr><th className="sticky left-0 bg-white p-1 text-left dark:bg-gray-900">Día</th>{hours.map((hour) => <th key={hour} className="min-w-9 p-1">{hour}</th>)}</tr></thead>
             <tbody>{volumeValues.map((row, day) => <tr key={day}><th className="sticky left-0 bg-white p-1 text-left dark:bg-gray-900">{weekdayNames[day]}</th>{row.map((value, hour) => <td key={hour} className="rounded p-1" style={{ backgroundColor: heatColor(value, maximumVolume, "blue") }} title={`${weekdayNames[day]} ${hours[hour]}: ${value} contactos`}>{value}</td>)}</tr>)}</tbody>
-          </table></div>
+          </table></div>}
         </ComponentCard>
         <ComponentCard title="Cobertura y faltantes de la semana" desc="Semana que contiene la fecha de planificación. Cada columna representa 30 minutos; los descansos reducen la cobertura programada.">
+          <VisualizationControls label="cobertura y faltantes semanales" view={weeklyView} onChange={setWeeklyView} explanation="Cada línea representa un día de la semana de planificación; el eje horizontal recorre sus bloques de 30 minutos. El selector elige si se muestran agentes sugeridos, programados o faltantes. La sugerencia usa la demanda histórica P75 y la capacidad configurada; la cobertura programada descuenta los descansos. Un valor vacío indica datos insuficientes o configuración faltante." />
           <div className="flex flex-wrap gap-4">
             <label className="text-sm">Equipo<select className={inputClass} value={weeklyTeam} onChange={(event) => setWeeklyTeam(event.target.value as typeof weeklyTeam)}><option value="calls">Llamadas</option><option value="chat_ticket">Chats (equipo compartido)</option></select></label>
             <label className="text-sm">Mostrar<select className={inputClass} value={weeklyMetric} onChange={(event) => setWeeklyMetric(event.target.value as typeof weeklyMetric)}><option value="gap">Agentes faltantes</option><option value="scheduled">Agentes programados</option><option value="suggested">Agentes sugeridos</option></select></label>
           </div>
           {result.capacities[weeklyTeam === "calls" ? "call" : "chat"] == null && weeklyMetric !== "scheduled" && <p className="mt-3 text-sm text-amber-700">Falta configurar una o más capacidades por agente y hora para calcular sugerencias y faltantes.</p>}
-          {!result.weekly?.length ? <p className="mt-4 text-sm text-amber-700">Actualiza el API para consultar el cruce de toda la semana.</p> : <div className="overflow-x-auto"><table className="mt-4 min-w-[1900px] border-separate border-spacing-1 text-center text-xs">
+          {!result.weekly?.length ? <p className="mt-4 text-sm text-amber-700">Actualiza el API para consultar el cruce de toda la semana.</p> : weeklyView === "chart" ? <div className="min-w-0 overflow-x-auto" aria-label="Línea de tiempo semanal de cobertura y faltantes"><Chart options={weeklyChartOptions} series={weeklyChartSeries} type="line" height={390} /></div> : <div className="overflow-x-auto"><table className="mt-4 min-w-[1900px] border-separate border-spacing-1 text-center text-xs">
             <thead><tr><th className="sticky left-0 bg-white p-1 text-left dark:bg-gray-900">Día</th>{halfHours.map((hour) => <th key={hour} className="min-w-9 p-1">{hour}</th>)}</tr></thead>
             <tbody>{result.weekly.map((day, index) => <tr key={day.date}><th className="sticky left-0 bg-white p-1 text-left dark:bg-gray-900">{weekdayNames[index]}<span className="block font-normal">{day.date}</span></th>{weeklyValues[index].map((value, slot) => <td key={slot} className="rounded p-1" style={{ backgroundColor: heatColor(value, maximumWeekly, weeklyMetric === "gap" ? "amber" : "blue") }} title={`${weekdayNames[index]} ${day.date} ${halfHours[slot]}: ${value ?? "Sin datos"}`}>{value ?? "—"}</td>)}</tr>)}</tbody>
           </table></div>}
           <p className="mt-2 text-xs text-gray-500">— indica que faltan capacidad configurada, días históricos suficientes o un horario publicado para ese equipo.</p>
         </ComponentCard>
-        <ComponentCard title="Agentes sugeridos y programados" desc={`Plan: ${result.planning_date} · Histórico: ${result.history_from} a ${result.history_to} · ${result.slots[0]?.sample_days ?? 0} días comparables · ${result.timezone}`}>
+        <ComponentCard title="Agentes sugeridos y programados por franja" desc={`Plan: ${result.planning_date} · Histórico: ${result.history_from} a ${result.history_to} · ${result.slots[0]?.sample_days ?? 0} días comparables · ${result.timezone}`}>
           {(result.slots[0]?.sample_days ?? 0) < 4 && <p className="mb-4 text-sm text-amber-700">Se necesitan al menos cuatro días con contactos para calcular la recomendación.</p>}
           {(result.capacities.call == null || result.capacities.chat == null) && <p className="mb-4 text-sm text-amber-700">Falta configurar capacidad por agente y hora en Admin → Equipo y horarios.</p>}
-          <div className="min-w-0"><Chart options={chartOptions} series={chartSeries} type="line" height={380} /></div>
-        </ComponentCard>
-        <ComponentCard title="Detalle por franja" desc="La recomendación se redondea a agentes completos. La cobertura descuenta los descansos publicados.">
-          <div className="max-h-[560px] overflow-auto"><table className="w-full min-w-[850px] text-left text-sm">
+          <VisualizationControls label="agentes sugeridos y programados por franja" view={detailView} onChange={setDetailView} explanation="La línea de tiempo compara por franja de 30 minutos los agentes sugeridos y programados para llamadas y chats humanos. La sugerencia se calcula con la demanda P75 y la capacidad configurada, y se redondea a agentes completos; la cobertura programada descuenta los descansos publicados. Los faltantes son la diferencia entre sugeridos y programados. La demanda P75 detallada se muestra en la tabla." />
+          {detailView === "chart" ? <div className="min-w-0 overflow-x-auto" aria-label="Línea de tiempo de agentes sugeridos y programados"><Chart options={chartOptions} series={chartSeries} type="line" height={380} /></div> : <div className="max-h-[560px] overflow-auto"><table className="w-full min-w-[850px] text-left text-sm">
             <thead className="sticky top-0 bg-white text-gray-600 dark:bg-gray-900 dark:text-gray-300"><tr><th className="p-2">Hora</th><th className="p-2">Llamadas P75</th><th className="p-2">Sugeridos</th><th className="p-2">Programados</th><th className="p-2">Faltan</th><th className="p-2">Chats humanos P75</th><th className="p-2">Chats sugeridos</th><th className="p-2">Chats programados</th><th className="p-2">Faltan</th></tr></thead>
             <tbody>{result.slots.map((slot) => <tr key={slot.time} className="border-t border-gray-100 dark:border-gray-800"><td className="p-2 font-medium">{slot.time}</td><td className="p-2">{slot.demand_p75.call?.toFixed(1) ?? "—"}</td><td className="p-2">{slot.calls.suggested ?? "—"}</td><td className="p-2">{slot.calls.scheduled ?? "Sin horario"}</td><td className="p-2">{slot.calls.gap ?? "—"}</td><td className="p-2">{slot.demand_p75.chat?.toFixed(1) ?? "—"}</td><td className="p-2">{slot.chat_ticket.suggested ?? "—"}</td><td className="p-2">{slot.chat_ticket.scheduled ?? "Sin horario"}</td><td className="p-2">{slot.chat_ticket.gap ?? "—"}</td></tr>)}</tbody>
-          </table></div>
+          </table></div>}
         </ComponentCard>
       </>}
     </div>

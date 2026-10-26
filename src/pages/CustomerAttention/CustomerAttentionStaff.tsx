@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../compon
 import PaginationWithIcon from "../../components/tables/DataTables/TableOne/PaginationWithIcon";
 import { customerAttentionService } from "../../lib/customer-attention/service";
 import type { AgentMapping, StaffMember, StaffResponse, StaffSchedule } from "../../lib/customer-attention/types";
+import { cancellationStatisticsService } from "../../lib/cancellation-statistics/service";
+import type { CancellationAlertThresholds } from "../../lib/cancellation-statistics/types";
 
 const days = ["L", "M", "Mi", "J", "V", "S", "D"];
 const blankSchedule: Omit<StaffSchedule, "id" | "staff_id"> = {
@@ -17,6 +19,15 @@ const blankSchedule: Omit<StaffSchedule, "id" | "staff_id"> = {
 };
 const inputClass = "h-9 rounded-lg border border-gray-300 bg-transparent px-3 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90";
 const buttonClass = "h-9 rounded-lg bg-brand-500 px-4 text-sm font-medium text-gray-900 transition-colors hover:bg-brand-600 disabled:opacity-50";
+type AlertThresholdDraft = Record<keyof CancellationAlertThresholds, string>;
+
+function toAlertThresholdDraft(values: CancellationAlertThresholds): AlertThresholdDraft {
+  return {
+    high_rate_percent: String(values.high_rate_percent),
+    high_impact_usd: String(values.high_impact_usd),
+    late_cancellation_days: String(values.late_cancellation_days),
+  };
+}
 
 const PencilIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 const DisableIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M9 11v5m6-5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -48,6 +59,12 @@ export default function CustomerAttentionStaff() {
   const [schedule, setSchedule] = useState(blankSchedule);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [capacities, setCapacities] = useState<StaffResponse["capacities"]>({ call: null, chat: null, ticket: null });
+  const [alertThresholdDraft, setAlertThresholdDraft] = useState<AlertThresholdDraft>({ high_rate_percent: "", high_impact_usd: "", late_cancellation_days: "" });
+  const [loadingAlertThresholds, setLoadingAlertThresholds] = useState(true);
+  const [hasAlertThresholds, setHasAlertThresholds] = useState(false);
+  const [savingAlertThresholds, setSavingAlertThresholds] = useState(false);
+  const [alertThresholdError, setAlertThresholdError] = useState("");
+  const [alertThresholdMessage, setAlertThresholdMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -79,6 +96,8 @@ export default function CustomerAttentionStaff() {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setLoadingAlertThresholds(true);
+    setAlertThresholdError("");
     Promise.allSettled([refresh(controller.signal), customerAttentionService.mappings(controller.signal), customerAttentionService.staffAccess(controller.signal)]).then(([staffResult, mappingsResult, permissionsResult]) => {
       if (controller.signal.aborted) return;
       if (staffResult.status === "rejected") setError(errorMessage(staffResult.reason));
@@ -86,6 +105,16 @@ export default function CustomerAttentionStaff() {
       if (permissionsResult.status === "fulfilled") setCanEdit(permissionsResult.value.can_edit);
       setLoading(false);
     });
+    cancellationStatisticsService.alertThresholds(controller.signal)
+      .then((values) => {
+        if (controller.signal.aborted) return;
+        setAlertThresholdDraft(toAlertThresholdDraft(values));
+        setHasAlertThresholds(true);
+      })
+      .catch((caught) => {
+        if (!controller.signal.aborted) setAlertThresholdError(errorMessage(caught));
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoadingAlertThresholds(false); });
     return () => controller.abort();
   }, [refresh]);
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
@@ -112,6 +141,25 @@ export default function CustomerAttentionStaff() {
       setMessage(success);
     } catch (caught) { setError(errorMessage(caught)); }
     finally { setBusy(false); }
+  }
+  async function saveAlertThresholds(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSavingAlertThresholds(true);
+    setAlertThresholdError("");
+    setAlertThresholdMessage("");
+    try {
+      const saved = await cancellationStatisticsService.saveAlertThresholds({
+        high_rate_percent: Number(alertThresholdDraft.high_rate_percent),
+        high_impact_usd: Number(alertThresholdDraft.high_impact_usd),
+        late_cancellation_days: Number(alertThresholdDraft.late_cancellation_days),
+      });
+      setAlertThresholdDraft(toAlertThresholdDraft(saved));
+      setAlertThresholdMessage("Umbrales guardados.");
+    } catch (caught) {
+      setAlertThresholdError(errorMessage(caught));
+    } finally {
+      setSavingAlertThresholds(false);
+    }
   }
   async function savePerson(event: React.FormEvent) {
     event.preventDefault();
@@ -197,6 +245,18 @@ export default function CustomerAttentionStaff() {
         <form onSubmit={(event) => { event.preventDefault(); void run(() => customerAttentionService.saveCapacities(capacities), "Capacidades guardadas."); }} className="flex flex-wrap items-end gap-4">
           {(["call", "chat"] as const).map((channel) => <label key={channel} className="text-sm">{channel === "call" ? "Llamadas" : "Chats"}<input type="number" min="0.001" max="10000" step="0.001" disabled={!canEdit} className={`${inputClass} mt-1 block w-full`} value={capacities[channel] ?? ""} onChange={(event) => setCapacities({ ...capacities, [channel]: event.target.value ? Number(event.target.value) : null })} /></label>)}
           {canEdit && <button disabled={busy} className={buttonClass}>Guardar capacidades</button>}
+        </form>
+      </ComponentCard>
+
+      <ComponentCard title="Umbrales de alertas de cancelación" desc="Configura los valores que determinan tasa alta, impacto alto y cancelación tardía. También se usan en el filtro Enfoque de Orden vs cancelación.">
+        <form onSubmit={saveAlertThresholds} className="flex flex-wrap items-end gap-4">
+          <label className="text-sm">Tasa alta (%)<input type="number" required min="0.001" max="1000" step="0.001" disabled={!canEdit || !hasAlertThresholds || loadingAlertThresholds || savingAlertThresholds} className={`${inputClass} mt-1 block w-full sm:w-40`} value={alertThresholdDraft.high_rate_percent} onChange={(event) => setAlertThresholdDraft({ ...alertThresholdDraft, high_rate_percent: event.target.value })} /></label>
+          <label className="text-sm">Impacto alto (USD)<input type="number" required min="0.01" max="999999999999.999" step="0.01" disabled={!canEdit || !hasAlertThresholds || loadingAlertThresholds || savingAlertThresholds} className={`${inputClass} mt-1 block w-full sm:w-48`} value={alertThresholdDraft.high_impact_usd} onChange={(event) => setAlertThresholdDraft({ ...alertThresholdDraft, high_impact_usd: event.target.value })} /></label>
+          <label className="text-sm">Cancelación tardía (días)<input type="number" required min="1" max="3650" step="1" disabled={!canEdit || !hasAlertThresholds || loadingAlertThresholds || savingAlertThresholds} className={`${inputClass} mt-1 block w-full sm:w-48`} value={alertThresholdDraft.late_cancellation_days} onChange={(event) => setAlertThresholdDraft({ ...alertThresholdDraft, late_cancellation_days: event.target.value })} /></label>
+          {canEdit && <button disabled={!hasAlertThresholds || loadingAlertThresholds || savingAlertThresholds} className={buttonClass}>{savingAlertThresholds ? "Guardando…" : "Guardar umbrales"}</button>}
+          {loadingAlertThresholds && <p role="status" className="w-full text-sm text-gray-500">Cargando umbrales…</p>}
+          {alertThresholdMessage && <p role="status" className="w-full text-sm text-green-700 dark:text-green-400">{alertThresholdMessage}</p>}
+          {alertThresholdError && <p role="alert" className="w-full text-sm text-red-600">{alertThresholdError}</p>}
         </form>
       </ComponentCard>
     </div>

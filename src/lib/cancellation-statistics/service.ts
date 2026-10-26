@@ -1,5 +1,5 @@
 import apiClient from "../apiClient";
-import type { CancellationStatisticsResponse } from "./types";
+import type { CancellationAlertThresholds, CancellationStatisticsResponse } from "./types";
 
 export const cancellationStatisticsService = {
   async get(query: {
@@ -14,6 +14,20 @@ export const cancellationStatisticsService = {
     const { data } = await apiClient.get<CancellationStatisticsResponse>(
       "/cancellations/atc/v0/statistics/order-cancellations",
       { params: query, signal },
+    );
+    return data;
+  },
+  async alertThresholds(signal: AbortSignal) {
+    const { data } = await apiClient.get<CancellationAlertThresholds>(
+      "/cancellations/atc/v0/statistics/order-cancellations/alert-thresholds",
+      { signal },
+    );
+    return data;
+  },
+  async saveAlertThresholds(payload: CancellationAlertThresholds) {
+    const { data } = await apiClient.put<CancellationAlertThresholds>(
+      "/cancellations/atc/v0/statistics/order-cancellations/alert-thresholds",
+      payload,
     );
     return data;
   },
