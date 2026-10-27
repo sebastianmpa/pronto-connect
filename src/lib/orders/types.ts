@@ -313,6 +313,7 @@ export interface OrderDetail {
 
   // Statuses returned by the different order systems.
   status_ideal?: string | null;
+  status_ideal_date?: string | null;
   internal_eta?: string | null;
   status_text: string;
   cancelled?: string | null;

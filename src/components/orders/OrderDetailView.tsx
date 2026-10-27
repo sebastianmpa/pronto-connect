@@ -324,12 +324,19 @@ export default function OrderDetailView({
               {customerServiceStatus}
             </span>
 
-            <span
-              className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700 dark:bg-white/[0.06] dark:text-gray-300"
-              title="Status returned by IDEAL"
+            <div
+              className="inline-flex flex-col items-end rounded-lg border border-gray-200 bg-gray-100 px-3 py-1.5 dark:border-white/[0.06] dark:bg-white/[0.06]"
+              title="IDEAL order status"
             >
-              IDEAL: {idealStatus || "—"}
-            </span>
+              <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                IDEAL: {idealStatus || "—"}
+              </span>
+              {order.status_ideal_date && (
+                <span className="mt-1 border-t border-gray-200 pt-1 text-[10px] font-semibold leading-none text-gray-700 dark:border-white/[0.1] dark:text-gray-300">
+                  Changed on {formatDate(order.status_ideal_date)}
+                </span>
+              )}
+            </div>
           </div>
 
           {order.internal_eta && (
