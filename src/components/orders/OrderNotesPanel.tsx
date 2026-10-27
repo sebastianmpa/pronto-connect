@@ -390,7 +390,7 @@ export default function OrderNotesPanel({
           />
 
           <p className="mt-1 text-[11px] leading-4 text-gray-400">
-            The new text will be appended to the existing IDEAL notes.
+            The new note will be added above the existing IDEAL notes with the time and agent name.
           </p>
         </div>
 
