@@ -63,6 +63,15 @@ const navItems: NavItem[] = [
     path: "/orders",
   },
   {
+    icon: <TableIcon />,
+    name: "BigCommerce Orders",
+    subItems: [
+      { name: "Search and edit orders", path: "/bigcommerce-order-edits" },
+      { name: "Edit approvals", path: "/bigcommerce-order-edit-approvals" },
+      { name: "Change reasons", path: "/bigcommerce-order-edit-reasons" },
+    ],
+  },
+  {
     icon: <BoxCubeIcon />,
     name: "Parts",
     subItems: [

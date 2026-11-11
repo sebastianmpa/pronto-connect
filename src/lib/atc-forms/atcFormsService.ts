@@ -1,6 +1,7 @@
 import apiClient from "../apiClient";
 import type {
   AtcFormItem,
+  AtcFormTicketResponse,
   AtcFormsParams,
   AtcFormsResponse,
   AtcFormTypesResponse,
@@ -15,6 +16,46 @@ import type {
  * Client Requests module — ATC "atc-forms" service (claims, returns, feedback, cancellations).
  */
 const atcFormsService = {
+  getTicket: async (id: number, from = 0): Promise<AtcFormTicketResponse> => {
+    const { data } = await apiClient.get<AtcFormTicketResponse>(
+      `/atc-forms/atc/v0/${id}/ticket`,
+      { params: { from, limit: 10 } },
+    );
+    return data;
+  },
+
+  getTicketAttachment: async (formId: number, threadId: string | null, attachmentId: string): Promise<Blob> => {
+    const path = threadId
+      ? `/atc-forms/atc/v0/${formId}/ticket/threads/${threadId}/attachments/${attachmentId}`
+      : `/atc-forms/atc/v0/${formId}/ticket/attachments/${attachmentId}`;
+    const { data } = await apiClient.get<Blob>(
+      path,
+      { responseType: "blob" },
+    );
+    return data;
+  },
+
+  replyToTicket: async (id: number, content: string): Promise<{ replyId: string; atcFormStatus: string; statusUpdateFailed: boolean }> => {
+    const { data } = await apiClient.post<{ replyId: string; atcFormStatus: string; statusUpdateFailed: boolean }>(
+      `/atc-forms/atc/v0/${id}/ticket/reply`,
+      { content },
+    );
+    return data;
+  },
+
+  closeTicket: async (id: number): Promise<{ status: string; statusType: string; atcFormStatus: string; statusUpdateFailed: boolean }> => {
+    const { data } = await apiClient.post<{ status: string; statusType: string; atcFormStatus: string; statusUpdateFailed: boolean }>(
+      `/atc-forms/atc/v0/${id}/ticket/close`,
+    );
+    return data;
+  },
+
+  reopenTicket: async (id: number): Promise<{ status: string; statusType: string; atcFormStatus: string; statusUpdateFailed: boolean }> => {
+    const { data } = await apiClient.post<{ status: string; statusType: string; atcFormStatus: string; statusUpdateFailed: boolean }>(
+      `/atc-forms/atc/v0/${id}/ticket/reopen`,
+    );
+    return data;
+  },
   /**
    * GET /atc-forms/atc/v0/paginated
    */

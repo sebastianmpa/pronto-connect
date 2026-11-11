@@ -4,6 +4,7 @@ import { Modal } from "../ui/modal";
 import Label from "../form/Label";
 import CancelOrderModal from "../orders/CancelOrderModal";
 import atcFormsService from "../../lib/atc-forms/atcFormsService";
+import AtcTicketConversation from "./AtcTicketConversation";
 import ordersService from "../../lib/orders/ordersService";
 import { ATC_FORM_STATUSES } from "../../lib/atc-forms/types";
 import { statusBadgeClass } from "../../lib/atc-forms/statusBadge";
@@ -328,7 +329,7 @@ export default function AtcFormDetailModal({
       <Modal
         isOpen={isOpen && !cancellationOrder}
         onClose={onClose}
-        className="relative w-full max-w-[650px] sm:m-0 rounded-3xl bg-white p-6 lg:p-10 dark:bg-gray-900"
+        className="relative w-full max-w-[1280px] rounded-3xl bg-white p-5 sm:p-7 dark:bg-gray-900"
       >
         <div>
           <div className="mb-1 flex flex-wrap items-start justify-between gap-2 pr-8">
@@ -347,7 +348,9 @@ export default function AtcFormDetailModal({
             {request.form_sub_type && ` · ${request.form_sub_type}`} · Zoho ticket #{request.zoho_ticket_id}
           </p>
 
-          <div className="max-h-[55vh] space-y-4 overflow-y-auto pr-1">
+          <div className="grid max-h-[78vh] grid-cols-1 gap-5 overflow-y-auto lg:h-[76vh] lg:max-h-none lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:overflow-hidden">
+            <div className="order-2 min-h-0 space-y-5 overflow-y-visible pr-1 lg:order-1 lg:overflow-y-auto lg:pr-3">
+              <h5 className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Request information</h5>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <dt className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -617,8 +620,8 @@ export default function AtcFormDetailModal({
               </div>
 
               {isCancellationRequest &&
-                !cancellationIsProcessed &&
-                !cancellationAlreadySubmitted && (
+                !cancellationAlreadySubmitted &&
+                normalizeFormType(request.status) !== "cancelled" && (
                 <button
                   type="button"
                   onClick={() => void openCancellationFlow()}
@@ -635,6 +638,13 @@ export default function AtcFormDetailModal({
                 {error}
               </div>
             )}
+            </div>
+            <AtcTicketConversation
+              key={request.id}
+              requestId={request.id}
+              ticketNumber={request.zoho_ticket_id}
+              onStatusChanged={(newStatus) => onStatusChanged(request.id, newStatus)}
+            />
           </div>
         </div>
       </Modal>

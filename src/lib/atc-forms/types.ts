@@ -123,6 +123,35 @@ export interface AtcFormItem {
   fac005?: AtcFormFac005Summary;
 }
 
+export interface AtcFormTicketThread {
+  id: string;
+  direction: string | null;
+  channel: string | null;
+  status: string | null;
+  isPrivate: boolean;
+  content: string;
+  contentType: string;
+  from: string | null;
+  to: string | null;
+  sentAt: string | null;
+  attachments: { id: string; name: string; size: number | null }[];
+}
+
+export interface AtcFormTicketResponse {
+  atcFormId: number;
+  ticket: {
+    id: string;
+    number: string;
+    subject: string | null;
+    status: string | null;
+    statusType: string | null;
+    channel: string | null;
+    closedTime: string | null;
+  };
+  threads: { items: AtcFormTicketThread[]; hasMore: boolean };
+  attachments: AtcFormTicketThread["attachments"];
+}
+
 // ─── Paginated response ────────────────────────────────────────────────────────
 
 export interface AtcFormsResponse {

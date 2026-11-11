@@ -3,6 +3,11 @@ import ProtectedRoute from "./components/common/ProtectedRoute";
 import AtcSignIn from "./pages/AuthPages/AtcSignIn";
 import OrdersList from "./pages/Orders/OrdersList";
 import OrderDetail from "./pages/Orders/OrderDetail";
+import BigCommerceOrderEditApprovals from "./pages/BigCommerceOrderEdits/BigCommerceOrderEditApprovals";
+import BigCommerceOrderEditsList from "./pages/BigCommerceOrderEdits/BigCommerceOrderEditsList";
+import BigCommerceOrderEditReasons from "./pages/BigCommerceOrderEdits/BigCommerceOrderEditReasons";
+import BigCommerceOrderEditDetail from "./pages/BigCommerceOrderEdits/BigCommerceOrderEditDetail";
+import BigCommerceCustomerPaymentLink from "./pages/BigCommerceOrderEdits/BigCommerceCustomerPaymentLink";
 import SmsLogsList from "./pages/SmsLogs/SmsLogsList";
 import SmsLogDetail from "./pages/SmsLogs/SmsLogDetail";
 import CustomersList from "./pages/Customers/CustomersList";
@@ -140,12 +145,17 @@ export default function App() {
         <ScrollToTop />
         <CallToast />
         <Routes>
+          <Route path="/bigcommerce-order-payment" element={<BigCommerceCustomerPaymentLink />} />
           {/* Protected: Dashboard Layout */}
           <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index path="/" element={<CustomersList />} />
             <Route path="/orders" element={<OrdersList />} />
             <Route path="/orders/:orderNumber" element={<OrderDetail />} />
+            <Route path="/bigcommerce-order-edits" element={<BigCommerceOrderEditsList />} />
+            <Route path="/bigcommerce-order-edit-reasons" element={<BigCommerceOrderEditReasons />} />
+            <Route path="/bigcommerce-order-edits/:orderNumber" element={<BigCommerceOrderEditDetail />} />
+            <Route path="/bigcommerce-order-edit-approvals" element={<BigCommerceOrderEditApprovals />} />
             <Route path="/parts" element={<PartsList />} />
             <Route path="/parts/bc/:brand/:mpn" element={<PartDetailBc />} />
             <Route path="/parts/:mfr/:partNumber" element={<PartDetail />} />
