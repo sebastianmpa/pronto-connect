@@ -107,6 +107,7 @@ const partsService = {
           part_number: params.partNumber.trim(),
           locationid: params.locationId,
           force: params.force ?? true,
+          origin: "Pronto Connect",
         },
       },
     );
