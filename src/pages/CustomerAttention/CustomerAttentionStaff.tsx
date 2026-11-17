@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import PageMeta from "../../components/common/PageMeta";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import ComponentCard from "../../components/common/ComponentCard";
 import ConfirmModal from "../../components/common/ConfirmModal";
+import InfoTooltip from "../../components/common/InfoTooltip";
 import Label from "../../components/form/Label";
 import { Modal } from "../../components/ui/modal";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../../components/ui/table";
@@ -42,12 +44,12 @@ function errorMessage(error: unknown) {
 function scheduleLabel(row: StaffSchedule) {
   const shift = row.start_time && row.end_time ? `${row.start_time}–${row.end_time}` : "Turno pendiente";
   const rest = row.break_start && row.break_end ? ` · descanso ${row.break_start}–${row.break_end}` : "";
-  return `${row.status === "published" ? "Publicado" : "Borrador"} · ${row.effective_from || "sin vigencia"} · ${row.weekdays.map((day) => days[day - 1]).join(", ")} · ${shift}${rest}`;
+  return `${row.status === "published" ? "Referencia publicada" : "Borrador de referencia"} · ${row.effective_from || "sin vigencia"} · ${row.weekdays.map((day) => days[day - 1]).join(", ")} · ${shift}${rest}`;
 }
 function currentSchedule(agent: StaffMember) {
   const published = agent.schedules.filter((row) => row.status === "published").sort((a, b) => (b.effective_from || "").localeCompare(a.effective_from || ""))[0];
   if (published) return scheduleLabel(published);
-  return agent.schedules.length ? "Turno pendiente de publicar" : "Sin horario";
+  return agent.schedules.length ? "Referencia pendiente de publicar" : "Sin horario de referencia";
 }
 
 export default function CustomerAttentionStaff() {
@@ -191,7 +193,7 @@ export default function CustomerAttentionStaff() {
     if (schedule.status === "published" && selected.schedules.some((row) => row.status === "published" && row.effective_from && schedule.effective_from && row.effective_from <= schedule.effective_from) && !window.confirm("¿Publicar esta nueva versión? El horario anterior seguirá visible en el historial.")) return;
     await run(() => editingDraftId
       ? customerAttentionService.updateDraftSchedule(selected.id, editingDraftId, { ...schedule, effective_from: schedule.effective_from || null })
-      : customerAttentionService.addSchedule(selected.id, { ...schedule, effective_from: schedule.effective_from || null }), "Horario guardado.");
+      : customerAttentionService.addSchedule(selected.id, { ...schedule, effective_from: schedule.effective_from || null }), "Horario de referencia guardado.");
     setEditingDraftId(null);
     setSchedule(blankSchedule);
   }
@@ -209,10 +211,15 @@ export default function CustomerAttentionStaff() {
   }
 
   return <>
-    <PageMeta title="Equipo y horarios | Pronto Connect" description="Administración de agentes y horarios" />
-    <PageBreadcrumb pageTitle="Equipo y horarios" />
+    <PageMeta title="Equipo y horarios de referencia | Pronto Connect" description="Equipo, capacidades y horarios de referencia para el análisis de dotación" />
+    <PageBreadcrumb pageTitle="Equipo y horarios de referencia" />
     <div className="space-y-5 sm:space-y-6">
-      <ComponentCard title="Equipo y horarios" desc="Administra el padrón operativo, los turnos y su cobertura en hora de Florida (America/New_York). Los borradores no cuentan como cobertura publicada.">
+      <ComponentCard title="Equipo y horarios de referencia" desc="Administra agentes, capacidades y horarios usados por el análisis de dotación.">
+        <div className="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:bg-blue-900/20 dark:text-blue-100">
+          <p>Estos horarios alimentan <strong>Dotación sugerida</strong>. El horario semanal ATC aprobado se administra por separado.</p>
+          <InfoTooltip label="Diferencia entre horarios y capacidades" content="Los horarios y capacidades de esta pantalla sirven para el análisis de Dotación sugerida. No modifican ni se sincronizan con la programación semanal ATC, que tiene su propia configuración de habilidades y capacidad de chat." />
+          <Link to="/customer-attention/staffing" className="shrink-0 font-medium underline">Ver dotación</Link>
+        </div>
         <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
           <form onSubmit={handleSearch} className="flex flex-col gap-3 rounded-t-xl border border-b-0 border-gray-100 px-4 py-4 dark:border-white/[0.05] sm:flex-row sm:flex-wrap sm:items-end">
             <div className="flex flex-col gap-1"><Label htmlFor="staff-search">Agente</Label><input id="staff-search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Buscar por nombre" className={`${inputClass} w-full sm:w-64`} /></div>
@@ -225,7 +232,7 @@ export default function CustomerAttentionStaff() {
           {message && !formOpen && <div role="status" className="m-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">{message}</div>}
           <div className="max-w-full overflow-x-auto custom-scrollbar">
             {loading ? <div role="status" className="py-16 text-center text-sm text-gray-500">Cargando equipo…</div> : <Table>
-              <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]"><TableRow>{["Agente", "Equipo", "Horario vigente", "Estado", "Acciones"].map((label) => <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]"><p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p></TableCell>)}</TableRow></TableHeader>
+              <TableHeader className="border-t border-gray-100 dark:border-white/[0.05]"><TableRow>{["Agente", "Equipo", "Horario de referencia", "Estado", "Acciones"].map((label) => <TableCell key={label} isHeader className="border border-gray-100 px-4 py-3 dark:border-white/[0.05]"><p className="font-medium text-gray-700 text-theme-xs dark:text-gray-400">{label}</p></TableCell>)}</TableRow></TableHeader>
               <TableBody>
                 {visibleStaff.length === 0 ? <TableRow><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">No se encontraron agentes para esos filtros.</td></TableRow> : visibleStaff.map((agent) => <TableRow key={agent.id}>
                   <TableCell className="whitespace-nowrap border border-gray-100 px-4 py-3 text-theme-sm font-medium text-gray-800 dark:border-white/[0.05] dark:text-white/90">{agent.name}</TableCell>
@@ -272,17 +279,17 @@ export default function CustomerAttentionStaff() {
       </form>
       {selected && <div className="mt-5 grid gap-5 lg:grid-cols-2">
         <section className="rounded-xl border border-gray-100 p-4 dark:border-gray-800">
-          <h3 className="mb-3 font-medium text-gray-800 dark:text-white/90">Historial de horarios</h3>
+          <h3 className="mb-3 font-medium text-gray-800 dark:text-white/90">Historial de horarios de referencia</h3>
           {selected.team === "call" && <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">Turnos objetivo de llamadas: 08:30–17:30 (4 agentes), 09:00–18:00 (2) y 09:30–18:30 (1).</p>}
           {selected.schedules.length ? <ol className="max-h-56 space-y-2 overflow-y-auto text-sm">{selected.schedules.map((row) => <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 p-2 dark:bg-gray-800"><span>{scheduleLabel(row)}</span>{canEdit && <button type="button" className="text-brand-600 underline dark:text-brand-400" onClick={() => editSchedule(row)}>{row.status === "draft" ? "Editar borrador" : "Nueva versión"}</button>}</li>)}</ol> : <p className="text-sm text-gray-500">Este agente todavía no tiene horarios.</p>}
         </section>
         {canEdit && <form onSubmit={saveSchedule} className="space-y-3 rounded-xl border border-gray-100 p-4 dark:border-gray-800">
-          <h3 className="font-medium text-gray-800 dark:text-white/90">{editingDraftId ? "Editar borrador" : "Agregar horario"}</h3>
+          <h3 className="font-medium text-gray-800 dark:text-white/90">{editingDraftId ? "Editar borrador de referencia" : "Agregar horario de referencia"}</h3>
           {selected.team === "call" && <label className="block text-sm">Aplicar turno sugerido<select className={`${inputClass} mt-1 w-full`} value="" onChange={(event) => { const [start_time, end_time] = event.target.value.split("|"); if (start_time && end_time) setSchedule({ ...schedule, start_time, end_time }); }}><option value="">Seleccionar horario</option><option value="08:30|17:30">08:30–17:30 (4 agentes)</option><option value="09:00|18:00">09:00–18:00 (2 agentes)</option><option value="09:30|18:30">09:30–18:30 (1 agente)</option></select></label>}
           <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Vigente desde<input type="date" className={`${inputClass} mt-1 w-full`} value={schedule.effective_from || ""} onChange={(event) => setSchedule({ ...schedule, effective_from: event.target.value })} /></label><label className="text-sm">Estado<select className={`${inputClass} mt-1 w-full`} value={schedule.status} onChange={(event) => setSchedule({ ...schedule, status: event.target.value as StaffSchedule["status"] })}><option value="draft">Borrador</option><option value="published">Publicado</option></select></label><label className="text-sm">Inicio<input type="time" step={1800} className={`${inputClass} mt-1 w-full`} value={schedule.start_time || ""} onChange={(event) => setSchedule({ ...schedule, start_time: event.target.value || null })} /></label><label className="text-sm">Fin<input type="time" step={1800} className={`${inputClass} mt-1 w-full`} value={schedule.end_time || ""} onChange={(event) => setSchedule({ ...schedule, end_time: event.target.value || null })} /></label><label className="text-sm">Descanso desde<input type="time" step={1800} className={`${inputClass} mt-1 w-full`} value={schedule.break_start || ""} onChange={(event) => setSchedule({ ...schedule, break_start: event.target.value || null })} /></label><label className="text-sm">Descanso hasta<input type="time" step={1800} className={`${inputClass} mt-1 w-full`} value={schedule.break_end || ""} onChange={(event) => setSchedule({ ...schedule, break_end: event.target.value || null })} /></label></div>
           <fieldset><legend className="mb-2 text-sm">Días de la semana</legend><div className="flex flex-wrap gap-3">{days.map((label, index) => <label key={index} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={schedule.weekdays.includes(index + 1)} onChange={() => setSchedule({ ...schedule, weekdays: schedule.weekdays.includes(index + 1) ? schedule.weekdays.filter((day) => day !== index + 1) : [...schedule.weekdays, index + 1].sort() })} />{label}</label>)}</div></fieldset>
           {message && <p role="status" className="text-xs text-green-700">{message}</p>}{error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-          <div className="flex flex-wrap justify-end gap-2"><button type="button" className="h-9 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700" onClick={() => { setSchedule(blankSchedule); setEditingDraftId(null); }}>Limpiar</button><button disabled={busy} className={buttonClass}>{busy ? "Guardando…" : "Guardar horario"}</button></div>
+          <div className="flex flex-wrap justify-end gap-2"><button type="button" className="h-9 rounded-lg border border-gray-300 px-3 text-sm dark:border-gray-700" onClick={() => { setSchedule(blankSchedule); setEditingDraftId(null); }}>Limpiar</button><button disabled={busy} className={buttonClass}>{busy ? "Guardando…" : "Guardar horario base"}</button></div>
         </form>}
       </div>}
       {error && <div role="alert" className="mt-4 rounded-lg bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">{error}</div>}

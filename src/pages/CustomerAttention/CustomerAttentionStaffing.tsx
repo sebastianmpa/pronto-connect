@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import type { ApexOptions } from "apexcharts";
 import Chart from "react-apexcharts";
 import CollapsibleFilters from "../../components/common/CollapsibleFilters";
 import ComponentCard from "../../components/common/ComponentCard";
+import InfoTooltip from "../../components/common/InfoTooltip";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import PageMeta from "../../components/common/PageMeta";
 import Tooltip from "../../components/ui/tooltip/Tooltip";
@@ -146,6 +148,11 @@ export default function CustomerAttentionStaffing() {
     <div className="hidden sm:block"><PageBreadcrumb pageTitle="Dotación sugerida" /></div>
     <h1 className="mb-6 text-xl font-semibold text-gray-800 dark:text-white sm:hidden">Dotación sugerida</h1>
     <div className="space-y-6">
+      <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:bg-white/[0.03] dark:text-gray-300">
+        <p><strong>Análisis de cobertura:</strong> compara demanda con los horarios de referencia publicados en Admin. No genera ni publica el horario semanal ATC.</p>
+        <InfoTooltip label="Qué calcula Dotación sugerida" content="Usa histórico, capacidades por agente y los horarios de referencia de Equipo y horarios de referencia. Para generar y publicar los turnos reales de una semana, abre Horario semanal ATC." />
+        <Link to="/customer-attention/weekly-schedule" className="shrink-0 font-medium underline">Abrir horario semanal</Link>
+      </div>
       <CollapsibleFilters title="Filtros de planificación" description="La demanda se compara por día de semana y franja de 30 minutos, en hora de Florida.">
         <form onSubmit={applyFilters} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <label className="text-sm">Fecha a planificar<input type="date" className={inputClass} value={planningDate} onChange={(event) => setPlanningDate(event.target.value)} /></label>

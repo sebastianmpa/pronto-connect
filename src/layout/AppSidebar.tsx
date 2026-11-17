@@ -31,6 +31,7 @@ import {
   UserCircleIcon,
   MultiUserIcon,
   FilesIcon,
+  CalendarAltIcon,
 } from "../icons";
 import { cn } from "../utils";
 import SidebarWidget from "./SidebarWidget";
@@ -108,6 +109,11 @@ const navItems: NavItem[] = [
     icon: <GoToIcon />,
     name: "Answered Calls",
     path: "/answered-calls",
+  },
+  {
+    icon: <CalendarAltIcon />,
+    name: "Horario semanal ATC",
+    path: "/customer-attention/weekly-schedule",
   },
   {
     icon: <TableIcon />,
@@ -240,7 +246,7 @@ const _disabledNavItems: NavItem[] = [
 const othersItems: NavItem[] = [
   {
     icon: <MultiUserIcon />,
-    name: "Equipo y horarios",
+    name: "Equipo y horarios base",
     path: "/customer-attention/staff",
   },
   {
