@@ -57,7 +57,7 @@ export default function CustomerAttentionStaff() {
   const [data, setData] = useState<StaffResponse | null>(null);
   const [mappings, setMappings] = useState<AgentMapping[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [person, setPerson] = useState({ name: "", team: "call" as StaffMember["team"], goto_agent_id: "" });
+  const [person, setPerson] = useState({ name: "", team: "call" as StaffMember["team"], goto_agent_id: "", active: true });
   const [schedule, setSchedule] = useState(blankSchedule);
   const [editingDraftId, setEditingDraftId] = useState<number | null>(null);
   const [capacities, setCapacities] = useState<StaffResponse["capacities"]>({ call: null, chat: null, ticket: null });
@@ -123,14 +123,14 @@ export default function CustomerAttentionStaff() {
 
   function openCreate() {
     setSelectedId(null);
-    setPerson({ name: "", team: "call", goto_agent_id: "" });
+    setPerson({ name: "", team: "call", goto_agent_id: "", active: true });
     setSchedule(blankSchedule);
     setEditingDraftId(null);
     setError(""); setMessage(""); setFormOpen(true);
   }
   function openEdit(agent: StaffMember) {
     setSelectedId(agent.id);
-    setPerson({ name: agent.name, team: agent.team, goto_agent_id: agent.goto_agent_id || "" });
+    setPerson({ name: agent.name, team: agent.team, goto_agent_id: agent.goto_agent_id || "", active: agent.active });
     setSchedule(blankSchedule);
     setEditingDraftId(null);
     setError(""); setMessage(""); setFormOpen(true);
@@ -173,10 +173,10 @@ export default function CustomerAttentionStaff() {
         await refresh(new AbortController().signal);
         setMessage("Agente actualizado.");
       } else {
-        const created = await customerAttentionService.createStaff({ ...person, name: person.name.trim(), goto_agent_id: person.goto_agent_id || null });
+        const created = await customerAttentionService.createStaff({ name: person.name.trim(), team: person.team, goto_agent_id: person.goto_agent_id || null });
         await refresh(new AbortController().signal);
         setSelectedId(created.id);
-        setPerson({ name: created.name, team: created.team, goto_agent_id: created.goto_agent_id || "" });
+        setPerson({ name: created.name, team: created.team, goto_agent_id: created.goto_agent_id || "", active: created.active });
         setMessage("Agente creado. Ya puedes configurar sus horarios.");
       }
     } catch (caught) { setError(errorMessage(caught)); }
@@ -216,8 +216,8 @@ export default function CustomerAttentionStaff() {
     <div className="space-y-5 sm:space-y-6">
       <ComponentCard title="Equipo y horarios de referencia" desc="Administra agentes, capacidades y horarios usados por el análisis de dotación.">
         <div className="flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:bg-blue-900/20 dark:text-blue-100">
-          <p>Estos horarios alimentan <strong>Dotación sugerida</strong>. El horario semanal ATC aprobado se administra por separado.</p>
-          <InfoTooltip label="Diferencia entre horarios y capacidades" content="Los horarios y capacidades de esta pantalla sirven para el análisis de Dotación sugerida. No modifican ni se sincronizan con la programación semanal ATC, que tiene su propia configuración de habilidades y capacidad de chat." />
+          <p>El padrón y el estado activo de los agentes se comparten con <strong>Horario semanal ATC</strong>. Estos horarios de referencia alimentan Dotación sugerida.</p>
+          <InfoTooltip label="Datos compartidos y horarios" content="El nombre y el estado activo del agente son comunes a ambas pantallas. El equipo y los horarios de referencia se usan en Dotación sugerida. Las habilidades, preferencias y turnos por fecha pertenecen al planificador semanal; publicar un turno no cambia el horario de referencia." />
           <Link to="/customer-attention/staffing" className="shrink-0 font-medium underline">Ver dotación</Link>
         </div>
         <div className="overflow-hidden rounded-xl bg-white dark:bg-white/[0.03]">
@@ -273,8 +273,9 @@ export default function CustomerAttentionStaff() {
       <p className="mb-5 text-sm text-gray-500 dark:text-gray-400">El vínculo con el mapeo de estadísticas es opcional. Los cambios de horario conservan versiones anteriores.</p>
       <form onSubmit={savePerson} className="grid gap-3 rounded-xl border border-gray-100 p-4 dark:border-gray-800 sm:grid-cols-3">
         <label className="text-sm">Nombre<input required maxLength={100} className={`${inputClass} mt-1 w-full`} value={person.name} onChange={(event) => setPerson({ ...person, name: event.target.value })} /></label>
-        <label className="text-sm">Equipo<select className={`${inputClass} mt-1 w-full`} value={person.team} onChange={(event) => setPerson({ ...person, team: event.target.value as StaffMember["team"] })}><option value="call">Llamadas</option><option value="chat_ticket">Chats</option></select></label>
+        <label className="text-sm">Equipo<select className={`${inputClass} mt-1 w-full`} value={person.team} onChange={(event) => setPerson({ ...person, team: event.target.value as StaffMember["team"] })}><option value="call">Llamadas</option><option value="chat_ticket">Chats</option></select><span className="mt-1 flex items-center text-xs text-gray-500">Grupo principal compartido con Horario semanal ATC <InfoTooltip label="Equipo del agente" content="Este es el grupo principal del agente. Al cambiarlo aquí, también cambia en Horario semanal ATC. Las habilidades de llamadas y chats del planificador se configuran aparte. Si ya tiene un horario de referencia publicado, el sistema no permite cambiar su equipo para conservar el historial." /></span></label>
         <label className="text-sm">Vínculo con GoTo<select className={`${inputClass} mt-1 w-full`} value={person.goto_agent_id} onChange={(event) => setPerson({ ...person, goto_agent_id: event.target.value })}><option value="">Sin vínculo</option>{mappings.filter((mapping) => Boolean(Number(mapping.active))).map((mapping) => <option key={mapping.goto_agent_id} value={mapping.goto_agent_id}>{mapping.goto_agent_id}</option>)}</select></label>
+        {selected && <div className="flex items-center gap-2 text-sm sm:col-span-3"><label className="flex items-center gap-2"><input type="checkbox" checked={person.active} onChange={(event) => setPerson({ ...person, active: event.target.checked })} /> Activo en el equipo</label><InfoTooltip label="Estado del agente" content="Este estado es compartido con Horario semanal ATC. Si se desactiva, el agente deja de estar disponible para la operación; su historial y turnos publicados se conservan." /></div>}
         <div className="flex justify-end sm:col-span-3"><button disabled={busy} className={buttonClass}>{busy ? "Guardando…" : selected ? "Guardar agente" : "Crear agente"}</button></div>
       </form>
       {selected && <div className="mt-5 grid gap-5 lg:grid-cols-2">
@@ -296,6 +297,6 @@ export default function CustomerAttentionStaff() {
       {message && <div role="status" className="mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">{message}</div>}
       <div className="mt-5 flex justify-end"><button type="button" onClick={() => { setFormOpen(false); setError(""); setMessage(""); }} disabled={busy} className="h-9 rounded-lg border border-gray-300 px-4 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300">Cerrar</button></div>
     </Modal>
-    <ConfirmModal isOpen={!!deactivating} onClose={() => setDeactivating(null)} onConfirm={() => deactivating && void toggleActive(deactivating)} title={deactivating?.active ? "¿Desactivar agente?" : "¿Reactivar agente?"} message={deactivating?.active ? `Se desactivará a ${deactivating.name}. Sus horarios publicados y el historial se conservarán.` : `Se reactivará a ${deactivating?.name}. Sus horarios anteriores se mantienen.`} confirmLabel={deactivating?.active ? "Desactivar" : "Reactivar"} confirming={busy} error={error || null} />
+    <ConfirmModal isOpen={!!deactivating} onClose={() => setDeactivating(null)} onConfirm={() => deactivating && void toggleActive(deactivating)} title={deactivating?.active ? "¿Desactivar agente?" : "¿Reactivar agente?"} message={deactivating?.active ? `Si ${deactivating.name} participa en la programación semanal, quítalo de esa selección y elige otro agente activo antes de generar un borrador. Sus turnos publicados y el historial se conservarán.` : `Se reactivará a ${deactivating?.name} y podrá participar en nuevos borradores. Sus horarios anteriores se mantienen.`} confirmLabel={deactivating?.active ? "Desactivar" : "Reactivar"} confirming={busy} error={error || null} />
   </>;
 }

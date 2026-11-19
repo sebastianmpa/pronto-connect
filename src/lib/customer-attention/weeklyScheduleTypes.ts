@@ -27,12 +27,14 @@ export interface WeeklyScheduleSettings {
 export interface WeeklyScheduleAgent {
   id: number;
   name: string;
+  team: "call" | "chat_ticket";
   user_email: string | null;
   skill_call: boolean;
   skill_chat: boolean;
   fixed_days_off: number[];
   preferred_lunch_time: string | null;
   active: boolean;
+  schedule_enabled: boolean;
   saturday_assignments: number;
 }
 

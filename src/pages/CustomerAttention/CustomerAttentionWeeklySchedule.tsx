@@ -274,7 +274,16 @@ export default function CustomerAttentionWeeklySchedule() {
 
   async function saveAgent(event: React.FormEvent<HTMLFormElement>, agent: WeeklyScheduleAgent) {
     event.preventDefault();
-    await run(() => weeklyScheduleService.updateAgent(agent.id, agent), "Configuración de agente guardada.");
+    await run(() => weeklyScheduleService.updateAgent(agent.id, {
+      user_email: agent.user_email,
+      team: agent.team,
+      skill_call: agent.skill_call,
+      skill_chat: agent.skill_chat,
+      fixed_days_off: agent.fixed_days_off,
+      preferred_lunch_time: agent.preferred_lunch_time,
+      active: agent.active,
+      schedule_enabled: agent.schedule_enabled,
+    }), "Configuración de agente guardada.");
   }
 
   async function addAbsence(event: React.FormEvent<HTMLFormElement>) {
@@ -420,30 +429,37 @@ export default function CustomerAttentionWeeklySchedule() {
           </form>
         </ComponentCard>
 
-        <ComponentCard title="Agentes ATC" desc="Abre un agente para cambiar su vínculo y disponibilidad.">
+        <ComponentCard title="Agentes ATC" desc="El padrón completo se comparte con Equipo y horarios.">
+          <p className="mb-3 text-sm text-gray-500">Selecciona exactamente cinco agentes para generar horarios. Los demás siguen en el padrón y puedes incluirlos si cambia el equipo.</p>
           <div className="space-y-3">
             {Object.values(agentDrafts).map((agent) => <details key={agent.id} className="rounded-xl border border-gray-200 px-4 dark:border-gray-800">
               <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 py-4 font-medium text-gray-800 dark:text-white">
                 <span>{agent.name}</span>
-                <span className="text-xs font-normal text-gray-500">{agent.active ? "Activo" : "Inactivo"} · {agent.user_email || "Sin usuario vinculado"} · {agent.saturday_assignments} sábados recientes</span>
+                <span className="text-xs font-normal text-gray-500">{agent.team === "call" ? "Llamadas" : "Chats"} · {agent.active ? "Activo" : "Inactivo"} · {agent.schedule_enabled ? "Seleccionado" : "No seleccionado"} · {agent.user_email || "Sin usuario vinculado"}</span>
               </summary>
               <form onSubmit={(event) => void saveAgent(event, agent)} className="border-t border-gray-100 py-4 dark:border-gray-800">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div className="text-sm"><div className="flex items-center"><label htmlFor={"weekly-agent-user-" + agent.id}>Usuario de Pronto Connect</label><InfoTooltip label="Usuario de Pronto Connect" content="Vincula el correo que puede consultar y confirmar los turnos de este agente." /></div>
                   <select id={"weekly-agent-user-" + agent.id} value={agent.user_email ?? ""} onChange={(event) => updateAgent(agent.id, { user_email: event.target.value || null })} className={inputClass}>
                     <option value="">Seleccionar usuario</option>
                     {configuration.users.map((user) => <option key={user.id} value={user.email}>{user.name} · {user.email}</option>)}
                   </select>
                 </div>
+                <div className="text-sm"><div className="flex items-center"><label htmlFor={"weekly-agent-team-" + agent.id}>Equipo</label><InfoTooltip label="Equipo del agente" content="Es el mismo grupo principal que se edita en Equipo y horarios. El cambio se refleja en ambas pantallas. Las habilidades para llamadas y chats son independientes. Si el agente ya tiene un horario de referencia publicado, el sistema bloquea el cambio de equipo para conservar ese historial." /></div>
+                  <select id={"weekly-agent-team-" + agent.id} value={agent.team} onChange={(event) => updateAgent(agent.id, { team: event.target.value as WeeklyScheduleAgent["team"] })} className={inputClass}>
+                    <option value="call">Llamadas</option><option value="chat_ticket">Chats</option>
+                  </select>
+                </div>
                 <TimeField label="Almuerzo preferido" help="Preferencia flexible; el planificador puede moverla para mantener cobertura y evitar el pico." value={agent.preferred_lunch_time ?? ""} onChange={(value) => updateAgent(agent.id, { preferred_lunch_time: value || null })} />
-                <div className="flex items-center gap-2 pt-6 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={agent.skill_call} onChange={(event) => updateAgent(agent.id, { skill_call: event.target.checked })} /> Llamadas</label><InfoTooltip label="Habilidad de llamadas" content="El agente puede cubrir franjas de llamadas. Se requieren al menos dos agentes activos con esta habilidad." /></div>
-                <div className="flex items-center gap-2 pt-6 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={agent.skill_chat} onChange={(event) => updateAgent(agent.id, { skill_chat: event.target.checked })} /> Chats</label><InfoTooltip label="Habilidad de chat" content="El agente puede cubrir franjas de chat cuando el canal está habilitado." /></div>
+                <div className="flex items-center gap-2 pt-6 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={agent.skill_call} onChange={(event) => updateAgent(agent.id, { skill_call: event.target.checked })} /> Llamadas</label><InfoTooltip label="Habilidad de llamadas" content="El agente puede cubrir franjas de llamadas. Esta habilidad no cambia su equipo principal. Se requieren al menos dos agentes activos con esta habilidad." /></div>
+                <div className="flex items-center gap-2 pt-6 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={agent.skill_chat} onChange={(event) => updateAgent(agent.id, { skill_chat: event.target.checked })} /> Chats</label><InfoTooltip label="Habilidad de chat" content="El agente puede cubrir franjas de chat cuando el canal está habilitado. Esta habilidad no cambia su equipo principal." /></div>
               </div>
               <div className="mt-3">
                 <p className="mb-2 flex items-center text-sm">Días libres <InfoTooltip label="Días libres fijos" content="El planificador no asigna turnos en estos días, salvo que deba conservar un turno que ya estaba confirmado." /></p>
                 <div className="flex flex-wrap gap-3">
                 {shortDays.map((label, index) => <label key={label} className="flex items-center gap-1.5 text-sm"><input type="checkbox" checked={agent.fixed_days_off.includes(index + 1)} onChange={(event) => updateAgent(agent.id, { fixed_days_off: event.target.checked ? [...agent.fixed_days_off, index + 1] : agent.fixed_days_off.filter((day) => day !== index + 1) })} /> Libre {label}</label>)}
-                <div className="flex items-center gap-1.5 text-sm"><label className="flex items-center gap-1.5"><input type="checkbox" checked={agent.active} onChange={(event) => updateAgent(agent.id, { active: event.target.checked })} /> Activo</label><InfoTooltip label="Agente activo" content="Los cinco agentes deben estar activos y configurados para generar el horario semanal." /></div>
+                <div className="flex items-center gap-1.5 text-sm"><label className="flex items-center gap-1.5"><input type="checkbox" checked={agent.active} onChange={(event) => updateAgent(agent.id, { active: event.target.checked })} /> Activo en el equipo</label><InfoTooltip label="Estado del agente" content="Se comparte con Equipo y horarios. Al desactivarlo deja de estar disponible para la operación; sus turnos publicados y su historial se conservan." /></div>
+                <div className="flex items-center gap-1.5 text-sm"><label className="flex items-center gap-1.5"><input type="checkbox" checked={agent.schedule_enabled} onChange={(event) => updateAgent(agent.id, { schedule_enabled: event.target.checked })} /> Incluir en horario semanal</label><InfoTooltip label="Participación semanal" content="Elige exactamente cinco agentes para generar un borrador. Cada uno debe estar activo y tener usuario y habilidades configurados." /></div>
                 </div>
               </div>
               <button className={secondaryButtonClass + " mt-4"} disabled={busy}>Guardar {agent.name}</button>
